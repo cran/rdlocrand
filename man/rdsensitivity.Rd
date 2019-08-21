@@ -4,9 +4,10 @@
 \alias{rdsensitivity}
 \title{Sensitivity analysis for RD designs under local randomization}
 \usage{
-rdsensitivity(Y, R, cutoff = 0, wlist, tlist, ci, statistic = "diffmeans",
-  nodraw = FALSE, p = 0, evalat = "cutoff", kernel = "uniform",
-  reps = 1000, seed = NULL, fuzzy = NULL, quietly = FALSE)
+rdsensitivity(Y, R, cutoff = 0, wlist, tlist, ci,
+  statistic = "diffmeans", nodraw = FALSE, p = 0,
+  evalat = "cutoff", kernel = "uniform", reps = 1000, seed = NULL,
+  fuzzy = NULL, quietly = FALSE)
 }
 \arguments{
 \item{Y}{a vector containing the values of the outcome variable.}
@@ -68,9 +69,9 @@ M.D. Cattaneo, R. Titiunik and G. Vazquez-Bare. (2016). \href{https://sites.goog
 M.D. Cattaneo, R. Titiunik and G. Vazquez-Bare. (2017). \href{https://sites.google.com/site/rdpackages/rdlocrand/Cattaneo-Titiunik-VazquezBare_2017_JPAM.pdf}{Comparing Inference Approaches for RD Designs: A Reexamination of the Effect of Head Start on Child Mortality}. \emph{Journal of Policy Analysis and Management} 36(3): 643-681.
 }
 \author{
-Matias Cattaneo, University of Michigan. \email{cattaneo@umich.edu}
+Matias Cattaneo, Princeton University. \email{cattaneo@princeton.edu}
 
-Rocio Titiunik, University of Michigan. \email{titiunik@umich.edu}
+Rocio Titiunik, Princeton University. \email{titiunik@princeton.edu}
 
-Gonzalo Vazquez-Bare, University of Michigan. \email{gvazquez@umich.edu}
+Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquez@econ.ucsb.edu}
 }

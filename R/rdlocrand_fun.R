@@ -1,7 +1,7 @@
 
 #################################################################
 # Auxiliary functions for rdlocrand
-# !version 0.4 13-Mar-2019
+# !version 0.5 13-Aug-2019
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 #################################################################
 

@@ -29,9 +29,9 @@ M.D. Cattaneo, R. Titiunik and G. Vazquez-Bare. (2017). \href{https://sites.goog
 P. Rosenbaum (2002). Observational Studies. Springer.
 }
 \author{
-Matias Cattaneo, University of Michigan. \email{cattaneo@umich.edu}
+Matias Cattaneo, Princeton University. \email{cattaneo@princeton.edu}
 
-Rocio Titiunik, University of Michigan. \email{titiunik@umich.edu}
+Rocio Titiunik, Princeton University. \email{titiunik@princeton.edu}
 
-Gonzalo Vazquez-Bare, University of Michigan. \email{gvazquez@umich.edu}
+Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquez@econ.ucsb.edu}
 }

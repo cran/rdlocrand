@@ -1,7 +1,7 @@
 
 ###################################################################
 # rdwinselect: window selection for randomization inference in RD
-# !version 0.4 13-Mar-2019
+# !version 0.5 13-Aug-2019
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###################################################################
 
@@ -17,9 +17,9 @@
 #'  the p-values are calculated using randomization inference methods.
 #'
 #' @author
-#' Matias Cattaneo, University of Michigan. \email{cattaneo@umich.edu}
+#' Matias Cattaneo, Princeton University. \email{cattaneo@princeton.edu}
 #'
-#' Rocio Titiunik, University of Michigan. \email{titiunik@umich.edu}
+#' Rocio Titiunik, Princeton University. \email{titiunik@princeton.edu}
 #'
 #' Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquez@econ.ucsb.edu}
 #'

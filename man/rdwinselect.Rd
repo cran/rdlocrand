@@ -4,11 +4,11 @@
 \alias{rdwinselect}
 \title{Window selection for RD designs under local randomization}
 \usage{
-rdwinselect(R, X, cutoff = 0, obsmin = NULL, wmin = NULL, wobs = NULL,
-  wstep = NULL, nwindows = 10, statistic = "diffmeans", approx = FALSE,
-  p = 0, evalat = "cutoff", kernel = "uniform", reps = 1000,
-  seed = NULL, level = 0.15, plot = FALSE, quietly = FALSE,
-  obsstep = NULL)
+rdwinselect(R, X, cutoff = 0, obsmin = NULL, wmin = NULL,
+  wobs = NULL, wstep = NULL, nwindows = 10,
+  statistic = "diffmeans", approx = FALSE, p = 0,
+  evalat = "cutoff", kernel = "uniform", reps = 1000, seed = NULL,
+  level = 0.15, plot = FALSE, quietly = FALSE, obsstep = NULL)
 }
 \arguments{
 \item{R}{a vector containing the values of the running variable.}
@@ -87,9 +87,9 @@ M.D. Cattaneo, R. Titiunik and G. Vazquez-Bare. (2016). \href{https://sites.goog
 M.D. Cattaneo, R. Titiunik and G. Vazquez-Bare. (2017). \href{https://sites.google.com/site/rdpackages/rdlocrand/Cattaneo-Titiunik-VazquezBare_2017_JPAM.pdf}{Comparing Inference Approaches for RD Designs: A Reexamination of the Effect of Head Start on Child Mortality}. \emph{Journal of Policy Analysis and Management} 36(3): 643-681.
 }
 \author{
-Matias Cattaneo, University of Michigan. \email{cattaneo@umich.edu}
+Matias Cattaneo, Princeton University. \email{cattaneo@princeton.edu}
 
-Rocio Titiunik, University of Michigan. \email{titiunik@umich.edu}
+Rocio Titiunik, Princeton University. \email{titiunik@princeton.edu}
 
-Gonzalo Vazquez-Bare, University of Michigan. \email{gvazquez@umich.edu}
+Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquez@econ.ucsb.edu}
 }
