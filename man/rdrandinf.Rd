@@ -4,14 +4,41 @@
 \alias{rdrandinf}
 \title{Randomization Inference for RD Designs under Local Randomization}
 \usage{
-rdrandinf(Y, R, cutoff = 0, wl = NULL, wr = NULL, reps = 1000,
-  statistic = "diffmeans", p = 0, nulltau = 0, evall = NULL,
-  evalr = NULL, kernel = "uniform", ci, interfci = NULL,
-  seed = NULL, fuzzy = NULL, d = NULL, dscale = NULL,
-  bernoulli = NULL, quietly = FALSE, covariates, obsmin = NULL,
-  wmin = NULL, wobs = NULL, wstep = NULL, nwindows = 10,
-  rdwstat = "diffmeans", approx = FALSE, rdwreps = 1000,
-  level = 0.15, plot = FALSE, obsstep = NULL)
+rdrandinf(
+  Y,
+  R,
+  cutoff = 0,
+  wl = NULL,
+  wr = NULL,
+  statistic = "diffmeans",
+  p = 0,
+  evall = NULL,
+  evalr = NULL,
+  kernel = "uniform",
+  fuzzy = NULL,
+  nulltau = 0,
+  d = NULL,
+  dscale = NULL,
+  ci,
+  interfci = NULL,
+  bernoulli = NULL,
+  reps = 1000,
+  seed = 666,
+  quietly = FALSE,
+  covariates,
+  obsmin = NULL,
+  wmin = NULL,
+  wobs = NULL,
+  wstep = NULL,
+  wmasspoints = FALSE,
+  nwindows = 10,
+  rdwstat = "diffmeans",
+  approx = FALSE,
+  rdwreps = 1000,
+  level = 0.15,
+  plot = FALSE,
+  obsstep = NULL
+)
 }
 \arguments{
 \item{Y}{a vector containing the values of the outcome variable.}
@@ -24,13 +51,9 @@ rdrandinf(Y, R, cutoff = 0, wl = NULL, wr = NULL, reps = 1000,
 
 \item{wr}{the right limit of the window. The default takes the maximum of the running variable.}
 
-\item{reps}{the number of replications (default is 1000).}
-
 \item{statistic}{the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic) and \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.}
 
 \item{p}{the order of the polynomial for outcome transformation model (default is 0).}
-
-\item{nulltau}{the value of the treatment effect under the null hypothesis (default is 0).}
 
 \item{evall}{the point at the left of the cutoff at which to evaluate the transformed outcome is evaluated. Default is the cutoff value.}
 
@@ -38,19 +61,23 @@ rdrandinf(Y, R, cutoff = 0, wl = NULL, wr = NULL, reps = 1000,
 
 \item{kernel}{specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.}
 
-\item{ci}{calculates a confidence interval for the treatment effect by test inversion. \code{ci} can be specified as a scalar or a vector, where the first element indicates the level of the confidence interval and the remaining elements, if specified, indicate the grid of treatment effects to be evaluated. This option uses \code{rdsensitivity} to calculate the confidence interval. See corresponding help for details.}
-
-\item{interfci}{the level for Rosenbaum's confidence interval under arbitrary interference between units.}
-
-\item{seed}{the seed to be used for the randomization test.}
-
 \item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
+
+\item{nulltau}{the value of the treatment effect under the null hypothesis (default is 0).}
 
 \item{d}{the effect size for asymptotic power calculation. Default is 0.5 * standard deviation of outcome variable for the control group.}
 
 \item{dscale}{the fraction of the standard deviation of the outcome variable for the control group used as alternative hypothesis for asymptotic power calculation. Default is 0.5.}
 
+\item{ci}{calculates a confidence interval for the treatment effect by test inversion. \code{ci} can be specified as a scalar or a vector, where the first element indicates the level of the confidence interval and the remaining elements, if specified, indicate the grid of treatment effects to be evaluated. This option uses \code{rdsensitivity} to calculate the confidence interval. See corresponding help for details.}
+
+\item{interfci}{the level for Rosenbaum's confidence interval under arbitrary interference between units.}
+
 \item{bernoulli}{the probabilities of treatment for each unit when assignment mechanism is a Bernoulli trial. This option should be specified as a vector of length equal to the length of the outcome and running variables.}
+
+\item{reps}{the number of replications (default is 1000).}
+
+\item{seed}{the seed to be used for the randomization test.}
 
 \item{quietly}{suppresses the output table.}
 
@@ -63,6 +90,8 @@ rdrandinf(Y, R, cutoff = 0, wl = NULL, wr = NULL, reps = 1000,
 \item{wobs}{the number of observations to be added at each side of the cutoff at each step.}
 
 \item{wstep}{the increment in window length (if \code{obsstep} is not specified) by the companion command \code{rdwinselect}.  Specifying both \code{obsstep} and \code{wstep} returns an error.}
+
+\item{wmasspoints}{specifies that the running variable is discrete and each masspoint should be used as a window.}
 
 \item{nwindows}{the number of windows to be used by the companion command \code{rdwinselect}. Default is 10.}
 

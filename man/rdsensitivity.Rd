@@ -4,10 +4,23 @@
 \alias{rdsensitivity}
 \title{Sensitivity analysis for RD designs under local randomization}
 \usage{
-rdsensitivity(Y, R, cutoff = 0, wlist, tlist, ci,
-  statistic = "diffmeans", nodraw = FALSE, p = 0,
-  evalat = "cutoff", kernel = "uniform", reps = 1000, seed = NULL,
-  fuzzy = NULL, quietly = FALSE)
+rdsensitivity(
+  Y,
+  R,
+  cutoff = 0,
+  wlist,
+  tlist,
+  statistic = "diffmeans",
+  p = 0,
+  evalat = "cutoff",
+  kernel = "uniform",
+  fuzzy = NULL,
+  ci,
+  reps = 1000,
+  seed = 666,
+  nodraw = FALSE,
+  quietly = FALSE
+)
 }
 \arguments{
 \item{Y}{a vector containing the values of the outcome variable.}
@@ -20,11 +33,7 @@ rdsensitivity(Y, R, cutoff = 0, wlist, tlist, ci,
 
 \item{tlist}{the list of values of the treatment effect under the null to be evaluated. By default the program employs ten evenly spaced points within the asymptotic confidence interval for a constant treatment effect in the smallest window to be used.}
 
-\item{ci}{returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the level of the confidence interval. Default level is .05 (95\% level CI).}
-
 \item{statistic}{the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic) and \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.}
-
-\item{nodraw}{suppresses contour plot.}
 
 \item{p}{the order of the polynomial for outcome adjustment model. Default is 0.}
 
@@ -32,11 +41,15 @@ rdsensitivity(Y, R, cutoff = 0, wlist, tlist, ci,
 
 \item{kernel}{specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.}
 
+\item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
+
+\item{ci}{returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the level of the confidence interval. Default level is .05 (95\% level CI).}
+
 \item{reps}{number of replications. Default is 1000.}
 
 \item{seed}{the seed to be used for the randomization tests.}
 
-\item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
+\item{nodraw}{suppresses contour plot.}
 
 \item{quietly}{suppresses the output table.}
 }

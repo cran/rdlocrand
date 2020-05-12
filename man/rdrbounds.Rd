@@ -4,10 +4,25 @@
 \alias{rdrbounds}
 \title{Rosenbaum bounds for RD designs under local randomization}
 \usage{
-rdrbounds(Y, R, cutoff = 0, prob, reps = 1000, bound = "both", wlist,
-  gamma, expgamma, fmpval = FALSE, statistic = "ranksum", p = 0,
-  evalat = "cutoff", kernel = "uniform", nulltau = 0, seed = NULL,
-  fuzzy = NULL)
+rdrbounds(
+  Y,
+  R,
+  cutoff = 0,
+  wlist,
+  gamma,
+  expgamma,
+  bound = "both",
+  statistic = "ranksum",
+  p = 0,
+  evalat = "cutoff",
+  kernel = "uniform",
+  fuzzy = NULL,
+  nulltau = 0,
+  prob,
+  fmpval = FALSE,
+  reps = 1000,
+  seed = 666
+)
 }
 \arguments{
 \item{Y}{a vector containing the values of the outcome variable.}
@@ -16,19 +31,13 @@ rdrbounds(Y, R, cutoff = 0, prob, reps = 1000, bound = "both", wlist,
 
 \item{cutoff}{the RD cutoff (default is 0).}
 
-\item{prob}{the probabilities of treatment for each unit when assignment mechanism is a Bernoulli trial. This option should be specified as a vector of length equal to the length of the outcome and running variables.}
-
-\item{reps}{number of replications. Default is 1000.}
-
-\item{bound}{specifies which bounds the command calculates. Options are \code{upper} for upper bound, \code{lower} for lower bound and \code{both} for both upper and lower bounds. Default is \code{both}.}
-
 \item{wlist}{the list of window lengths to be evaluated. By default the program constructs 10 windows around the cutoff, the first one including 10 treated and control observations and adding 5 observations to each group in subsequent windows.}
 
 \item{gamma}{the list of values of gamma to be evaluated.}
 
 \item{expgamma}{the list of values of exp(gamma) to be evaluated. Default is \code{c(1.5,2,2.5,3)}.}
 
-\item{fmpval}{reports the p-value under fixed margins randomization, in addition to the p-value under Bernoulli trials.}
+\item{bound}{specifies which bounds the command calculates. Options are \code{upper} for upper bound, \code{lower} for lower bound and \code{both} for both upper and lower bounds. Default is \code{both}.}
 
 \item{statistic}{the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic) and \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.}
 
@@ -38,11 +47,17 @@ rdrbounds(Y, R, cutoff = 0, prob, reps = 1000, bound = "both", wlist,
 
 \item{kernel}{specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.}
 
+\item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
+
 \item{nulltau}{the value of the treatment effect under the null hypothesis. Default is 0.}
 
-\item{seed}{the seed to be used for the randomization tests.}
+\item{prob}{the probabilities of treatment for each unit when assignment mechanism is a Bernoulli trial. This option should be specified as a vector of length equal to the length of the outcome and running variables.}
 
-\item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
+\item{fmpval}{reports the p-value under fixed margins randomization, in addition to the p-value under Bernoulli trials.}
+
+\item{reps}{number of replications. Default is 1000.}
+
+\item{seed}{the seed to be used for the randomization tests.}
 }
 \value{
 \item{gamma}{list of gamma values.}

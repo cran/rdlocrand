@@ -1,9 +1,8 @@
-
-###################################################################
+###############################################################################
 # rdsensitivity: sensitivity analysis for randomization inference in RD
-# !version 0.5 13-Aug-2019
+# !version 0.6 11-May-2020
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
-###################################################################
+###############################################################################
 
 #' Sensitivity analysis for RD designs under local randomization
 #'
@@ -31,15 +30,15 @@
 #' @param cutoff the RD cutoff (default is 0).
 #' @param wlist the list of window lengths to be evaluated. By default the program constructs 10 windows around the cutoff, the first one including 10 treated and control observations and adding 5 observations to each group in subsequent windows.
 #' @param tlist the list of values of the treatment effect under the null to be evaluated. By default the program employs ten evenly spaced points within the asymptotic confidence interval for a constant treatment effect in the smallest window to be used.
-#' @param ci returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the level of the confidence interval. Default level is .05 (95\% level CI).
 #' @param statistic the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic) and \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.
-#' @param nodraw suppresses contour plot.
 #' @param p the order of the polynomial for outcome adjustment model. Default is 0.
 #' @param evalat specifies the point at which the adjusted variable is evaluated. Allowed options are \code{cutoff} and \code{means}. Default is \code{cutoff}.
 #' @param kernel specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
+#' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
+#' @param ci returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the level of the confidence interval. Default level is .05 (95\% level CI).
 #' @param reps number of replications. Default is 1000.
 #' @param seed the seed to be used for the randomization tests.
-#' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
+#' @param nodraw suppresses contour plot.
 #' @param quietly suppresses the output table.
 #'
 #' @return
@@ -61,129 +60,133 @@
 #' @export
 
 
-rdsensitivity = function(Y,R,
+rdsensitivity <- function(Y,R,
                          cutoff = 0,
                          wlist,
                          tlist,
-                         ci,
                          statistic = 'diffmeans',
-                         nodraw = FALSE,
                          p = 0,
                          evalat = 'cutoff',
                          kernel = 'uniform',
-                         reps = 1000,
-                         seed = NULL,
                          fuzzy = NULL,
+                         ci,
+                         reps = 1000,
+                         seed = 666,
+                         nodraw = FALSE,
                          quietly = FALSE){
 
 
-
-  #################################################################
+  ###############################################################################
   # Parameters and error checking
-  #################################################################
+  ###############################################################################
 
-  if (cutoff<=min(R,na.rm=TRUE) | cutoff>=max(R,na.rm=TRUE)){stop('Cutoff must be within the range of the running variable')}
-  if (statistic!='diffmeans' & statistic!='ttest' & statistic!='ksmirnov' & statistic!='ranksum'){stop(paste(statistic,'not a valid statistic'))}
-  if (evalat!='cutoff' & evalat!='means'){stop('evalat only admits means or cutoff')}
+  if (cutoff<=min(R,na.rm=TRUE) | cutoff>=max(R,na.rm=TRUE)) stop('Cutoff must be within the range of the running variable')
+  if (statistic!='diffmeans' & statistic!='ttest' & statistic!='ksmirnov' & statistic!='ranksum') stop(paste(statistic,'not a valid statistic'))
+  if (evalat!='cutoff' & evalat!='means') stop('evalat only admits means or cutoff')
+
+  if (seed>0){
+    set.seed(seed)
+  } else if (seed!=-1){
+    stop('Seed has to be a positive integer or -1 for system seed')
+  }
+
+  data <- cbind(Y,R)
+  data <- data[complete.cases(data),]
+  Y <- data[,1]
+  R <- data[,2]
+
+  Rc <- R - cutoff
 
 
-  data = cbind(Y,R)
-  data = data[complete.cases(data),]
-  Y = data[,1]
-  R = data[,2]
-
-  Rc = R - cutoff
-
-
-  #################################################################
+  ###############################################################################
   # Default window list
-  #################################################################
+  ###############################################################################
 
   if (missing(wlist)){
-    aux = rdwinselect(Rc,obsstep=5,quietly=TRUE)
-    wlist = round(aux$results[,1],2)
+    aux <- rdwinselect(Rc,wobs=5,quietly=TRUE)
+    wlist <- round(aux$results[,1],2)
   }
 
 
-  #################################################################
+  ###############################################################################
   # Default tau list
-  #################################################################
+  ###############################################################################
 
   if (missing(tlist)){
-    D = as.numeric(Rc >= 0)
-    aux = lm(Y ~ D)
-    ci.ub = round(aux$coefficients['D']+1.96*sqrt(vcov(aux)['D','D']),2)
-    ci.lb = round(aux$coefficients['D']-1.96*sqrt(vcov(aux)['D','D']),2)
-    wstep = round((ci.ub-ci.lb)/10,2)
-    tlist = seq(ci.lb,ci.ub,by=wstep)
+    D <- as.numeric(Rc >= 0)
+    aux <- lm(Y ~ D)
+    ci.ub <- round(aux$coefficients['D']+1.96*sqrt(vcov(aux)['D','D']),2)
+    ci.lb <- round(aux$coefficients['D']-1.96*sqrt(vcov(aux)['D','D']),2)
+    wstep <- round((ci.ub-ci.lb)/10,2)
+    tlist <- seq(ci.lb,ci.ub,by=wstep)
   }
 
 
-  #################################################################
+  ###############################################################################
   # Sensitivity analysis
-  #################################################################
+  ###############################################################################
 
-  results = array(NA,dim=c(length(tlist),length(wlist)))
+  results <- array(NA,dim=c(length(tlist),length(wlist)))
   if (quietly==FALSE) {cat('\nRunning sensitivity analysis...\n')}
-  row = 1
+  row <- 1
   for (t in tlist){
-    col = 1
+    col <- 1
     for (w in wlist){
       if (evalat=='means'){
-        ww = (Rc >= -w) & (Rc <= w)
-        Rw = R[ww]
-        Dw = D[ww]
-        evall = mean(Rw[Dw==0])
-        evalr = mean(Rw[Dw==1])
+        ww <- (round(Rc,8) >= round(-w,8)) & (round(Rc,8) <= round(w,8))
+        Rw <- R[ww]
+        Dw <- D[ww]
+        evall <- mean(Rw[Dw==0])
+        evalr <- mean(Rw[Dw==1])
       } else{
-        evall=NULL
-        evalr=NULL
+        evall <- NULL
+        evalr <- NULL
       }
 
-      aux = rdrandinf(Y,Rc,wl=-w,wr=w,p=p,reps=reps,nulltau=t,
+      aux <- rdrandinf(Y,Rc,wl=-w,wr=w,p=p,reps=reps,nulltau=t,
                       statistic=statistic,kernel=kernel,evall=evall,evalr=evalr,
                       fuzzy=fuzzy,seed=seed,quietly=TRUE)
-      results[row,col] = aux$p.value
-      col = col + 1
+      results[row,col] <- aux$p.value
+      col <- col + 1
     }
-    row = row + 1
+    row <- row + 1
   }
-  if (quietly==FALSE) {cat('\nSensitivity analysis complete.\n')}
+  if (quietly==FALSE) cat('\nSensitivity analysis complete.\n')
 
 
-  #################################################################
+  ###############################################################################
   # Confidence interval
-  #################################################################
+  ###############################################################################
 
   if (!missing(ci)){
-    ci.window = ci[1]
+    ci.window <- ci[1]
     if (length(ci)>1){
-      ci.level = ci[2]
+      ci.level <- ci[2]
       if (ci.level<=0 | ci.level>=1){stop('ci level has to be between 0 and 1')}
     }else {
-      ci.level = .05
+      ci.level <- .05
     }
     if (is.element(ci.window,wlist)==TRUE){
-      col = which(wlist==ci.window)
-      aux = results[,col]
+      col <- which(wlist==ci.window)
+      aux <- results[,col]
       if (all(aux>ci.level)){
-        index.lb = 1
-        index.ub = length(aux)
-        ci.lb = tlist[index.lb]
-        ci.ub = tlist[index.ub]
+        index.lb <- 1
+        index.ub <- length(aux)
+        ci.lb <- tlist[index.lb]
+        ci.ub <- tlist[index.ub]
       } else if (all(aux<ci.level)){
         warning('no valid confidence interval in specified window grid')
-        ci.lb = NA
-        ci.ub = NA
+        ci.lb <- NA
+        ci.ub <- NA
       } else {
-        index.lb = min(which(aux>=.05))
-        index.ub = max(which(aux>=.05))
-        ci.lb = tlist[index.lb]
-        ci.ub = tlist[index.ub]
+        index.lb <- min(which(aux>=.05))
+        index.ub <- max(which(aux>=.05))
+        ci.lb <- tlist[index.lb]
+        ci.ub <- tlist[index.ub]
       }
 
 
-      conf.int = c(ci.lb,ci.ub)
+      conf.int <- c(ci.lb,ci.ub)
 
     } else{
       stop('window specified in ci not in wlist')
@@ -191,20 +194,20 @@ rdsensitivity = function(Y,R,
   }
 
 
-  #################################################################
+  ###############################################################################
   # Output
-  #################################################################
+  ###############################################################################
 
   if (missing(ci)){
-    output = list(tlist = tlist, wlist = wlist, results = results)
+    output <- list(tlist = tlist, wlist = wlist, results = results)
   } else {
-    output = list(tlist = tlist, wlist = wlist, results = results, ci = conf.int)
+    output <- list(tlist = tlist, wlist = wlist, results = results, ci = conf.int)
   }
 
 
-  #################################################################
+  ###############################################################################
   # Plot
-  #################################################################
+  ###############################################################################
 
   if (nodraw==FALSE){
     if (dim(results)[2]==1){
@@ -223,5 +226,3 @@ rdsensitivity = function(Y,R,
   return(output)
 
 }
-
-

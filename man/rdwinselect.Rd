@@ -4,11 +4,28 @@
 \alias{rdwinselect}
 \title{Window selection for RD designs under local randomization}
 \usage{
-rdwinselect(R, X, cutoff = 0, obsmin = NULL, wmin = NULL,
-  wobs = NULL, wstep = NULL, nwindows = 10,
-  statistic = "diffmeans", approx = FALSE, p = 0,
-  evalat = "cutoff", kernel = "uniform", reps = 1000, seed = NULL,
-  level = 0.15, plot = FALSE, quietly = FALSE, obsstep = NULL)
+rdwinselect(
+  R,
+  X,
+  cutoff = 0,
+  obsmin = NULL,
+  wmin = NULL,
+  wobs = NULL,
+  wstep = NULL,
+  wmasspoints = FALSE,
+  nwindows = 10,
+  statistic = "diffmeans",
+  p = 0,
+  evalat = "cutoff",
+  kernel = "uniform",
+  approx = FALSE,
+  level = 0.15,
+  reps = 1000,
+  seed = 666,
+  plot = FALSE,
+  quietly = FALSE,
+  obsstep = NULL
+)
 }
 \arguments{
 \item{R}{a vector containing the values of the running variable.}
@@ -21,15 +38,15 @@ rdwinselect(R, X, cutoff = 0, obsmin = NULL, wmin = NULL,
 
 \item{wmin}{the smallest window to be used.}
 
-\item{wobs}{the number of observations to be added at each side of the cutoff at each step.}
+\item{wobs}{the number of observations to be added at each side of the cutoff at each step. Default is 5}
 
 \item{wstep}{the increment in window length.}
+
+\item{wmasspoints}{specifies that the running variable is discrete and each masspoint should be used as a window.}
 
 \item{nwindows}{the number of windows to be used. Default is 10.}
 
 \item{statistic}{the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic), \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic) and \code{hotelling} (Hotelling's T-squared statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.}
-
-\item{approx}{forces the command to conduct the covariate balance tests using a large-sample approximation instead of finite-sample exact randomization inference methods.}
 
 \item{p}{the order of the polynomial for outcome adjustment model (for covariates). Default is 0.}
 
@@ -37,20 +54,23 @@ rdwinselect(R, X, cutoff = 0, obsmin = NULL, wmin = NULL,
 
 \item{kernel}{specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.}
 
+\item{approx}{forces the command to conduct the covariate balance tests using a large-sample approximation instead of finite-sample exact randomization inference methods.}
+
+\item{level}{the minimum accepted value of the p-value from the covariate balance tests. Default is .15.}
+
 \item{reps}{number of replications. Default is 1000.}
 
 \item{seed}{the seed to be used for the randomization tests.}
-
-\item{level}{the minimum accepted value of the p-value from the covariate balance tests. Default is .15.}
 
 \item{plot}{draws a scatter plot of the minimum p-value from the covariate balance test against window length.}
 
 \item{quietly}{suppress output}
 
-\item{obsstep}{the minimum number of observations to be added on each side of the cutoff for the sequence of fixed-increment nested windows. Default is 2. This option is deprecated and only included for backward compatibility.}
+\item{obsstep}{the minimum number of observations to be added on each side of the cutoff for the sequence of fixed-increment nested windows. This option is deprecated and only included for backward compatibility.}
 }
 \value{
 \item{window}{recommended window (NA is covariates are not specified)}
+\item{wlist}{list of window lengths}
 \item{results}{table including window lengths, minimum p-value in each window, corresponding number of the variable with minimum p-value (i.e. column of covariate matrix), Binomial test p-value and sample sizes to the left and right of the cutoff in each window.}
 \item{summary}{summary statistics.}
 }
