@@ -1,6 +1,6 @@
 ###############################################################################
 # rdwinselect: window selection for randomization inference in RD
-# !version 0.6 06-May-2020
+# !version 0.7 30-Jul-2020
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 

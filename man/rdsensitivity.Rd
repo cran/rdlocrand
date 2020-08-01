@@ -43,7 +43,7 @@ rdsensitivity(
 
 \item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
 
-\item{ci}{returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the level of the confidence interval. Default level is .05 (95\% level CI).}
+\item{ci}{returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the value of alpha for the confidence interval. Default alpha is .05 (95\% level CI).}
 
 \item{reps}{number of replications. Default is 1000.}
 

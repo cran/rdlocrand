@@ -1,6 +1,6 @@
 ###############################################################################
 # rdrandinf: randomization inference in RD window
-# !version 0.6 11-May-2020
+# !version 0.7 30-Jul-2020
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -42,7 +42,7 @@
 #' @param nulltau the value of the treatment effect under the null hypothesis (default is 0).
 #' @param d the effect size for asymptotic power calculation. Default is 0.5 * standard deviation of outcome variable for the control group.
 #' @param dscale the fraction of the standard deviation of the outcome variable for the control group used as alternative hypothesis for asymptotic power calculation. Default is 0.5.
-#' @param ci calculates a confidence interval for the treatment effect by test inversion. \code{ci} can be specified as a scalar or a vector, where the first element indicates the level of the confidence interval and the remaining elements, if specified, indicate the grid of treatment effects to be evaluated. This option uses \code{rdsensitivity} to calculate the confidence interval. See corresponding help for details.
+#' @param ci calculates a confidence interval for the treatment effect by test inversion. \code{ci} can be specified as a scalar or a vector, where the first element indicates the value of alpha for the confidence interval (typically 0.05 or 0.01) and the remaining elements, if specified, indicate the grid of treatment effects to be evaluated. This option uses \code{rdsensitivity} to calculate the confidence interval. See corresponding help for details. Note: the default tlist can be narrow in some cases, which may truncate the confidence interval. We recommend the user to manually set a large enough tlist.
 #' @param interfci the level for Rosenbaum's confidence interval under arbitrary interference between units.
 #' @param bernoulli the probabilities of treatment for each unit when assignment mechanism is a Bernoulli trial. This option should be specified as a vector of length equal to the length of the outcome and running variables.
 #' @param reps the number of replications (default is 1000).
@@ -133,7 +133,7 @@ rdrandinf <- function(Y,R,
   Rc.long <- R - cutoff
 
   if (!is.null(fuzzy)){
-    if (class(fuzzy)=='numeric'){
+    if (is.numeric(fuzzy)==TRUE){
       fuzzy.stat <- 'ar'
       fuzzy.tr <- fuzzy
     } else {
@@ -233,7 +233,7 @@ rdrandinf <- function(Y,R,
       if (quietly==FALSE) cat('\nRunning rdwinselect...\n')
       rdwlength <- rdwinselect(Rc.long,covariates,obsmin=obsmin,obsstep=obsstep,wmin=wmin,wstep=wstep,wobs=wobs,
                   wmasspoints=wmasspoints,nwindows=nwindows,statistic=rdwstat,approx=approx,
-                  reps=rdwreps,plot=plot,level=level,quietly=TRUE)
+                  reps=rdwreps,plot=plot,level=level,seed=seed,quietly=TRUE)
       wl <- cutoff + rdwlength$window[1]
       wr <- cutoff + rdwlength$window[2]
       if (quietly==FALSE) cat('\nrdwinselect complete.\n')
@@ -340,7 +340,11 @@ rdrandinf <- function(Y,R,
     Y.adj[Dw==0] <- lfit.c$residuals + lfit.c$coefficients[1]
   }
 
-  Y.adj.null <- Y.adj - nulltau*Dw
+  if (is.null(fuzzy)){
+    Y.adj.null <- Y.adj - nulltau*Dw
+  } else{
+    Y.adj.null <- Y.adj - nulltau*Tw
+  }
 
 
   ###############################################################################
@@ -358,9 +362,11 @@ rdrandinf <- function(Y,R,
 
   if (p==0){
     if (fuzzy.stat=='wald'){
-      aux <- AER::ivreg(Yw ~ Tw,~ Dw,weights=kweights)
+      aux <- AER::ivreg(Yw ~ Tw | Dw,weights=kweights)
       obs.stat <- aux$coefficients["Tw"]
       se <- sqrt(diag(sandwich::vcovHC(aux,type='HC1'))['Tw'])
+      ci.lb <- obs.stat - 1.96*se
+      ci.ub <- obs.stat + 1.96*se
       tstat <- aux$coefficients['Tw']/se
       asy.pval <- as.numeric(2*pnorm(-abs(tstat)))
       asy.power <- as.numeric(1-pnorm(1.96-delta/se)+pnorm(-1.96-delta/se))
@@ -388,9 +394,11 @@ rdrandinf <- function(Y,R,
 
     if (fuzzy.stat=='wald'){
       inter <- Rpoly*Dw
-      aux <- AER::ivreg(Yw ~ Rpoly + inter + Tw,~ Rpoly + inter + Dw,weights=kweights)
+      aux <- AER::ivreg(Yw ~ Rpoly + inter + Tw | Rpoly + inter + Dw,weights=kweights)
       obs.stat <- aux$coefficients["Tw"]
       se <- sqrt(diag(sandwich::vcovHC(aux,type='HC1'))['Tw'])
+      ci.lb <- obs.stat - 1.96*se
+      ci.ub <- obs.stat + 1.96*se
       tstat <- aux$coefficients['Tw']/se
       asy.pval <- as.numeric(2*pnorm(-abs(tstat)))
       asy.power <- as.numeric(1-pnorm(1.96-delta/se)+pnorm(-1.96-delta/se))
@@ -444,7 +452,7 @@ rdrandinf <- function(Y,R,
 
     }
 
-    if(quietly==FALSE) cat('\nRandomization-based test complete. \n')
+    if(quietly==FALSE) cat('Randomization-based test complete. \n')
 
     if (statistic == 'all'){
       p.value1 <- mean(abs(stats.distr[,1]) >= abs(obs.stat[1]),na.rm=TRUE)
@@ -464,17 +472,26 @@ rdrandinf <- function(Y,R,
 
   if (!missing(ci)){
     ci.level <- ci[1]
-    if (length(ci)>1){
-      tlist <- ci[-1]
-      aux <- rdsensitivity(Y,Rc,p=p,wlist=wr,tlist=tlist,ci=c(wr,ci.level),
-                          reps=reps,nodraw=TRUE)
+    if (fuzzy.stat!='wald'){
+      wlength <- wr - cutoff
+      if (length(ci)>1){
+        tlist <- ci[-1]
+        aux <- rdsensitivity(Y,Rc,p=p,wlist=wlength,tlist=tlist,fuzzy=fuzzy,ci=c(wlength,ci.level),
+                             reps=reps,quietly=quietly,seed=seed,nodraw=TRUE)
 
-    } else {
-      aux <- rdsensitivity(Y,Rc,p=p,wlist=wr,ci=c(wr,ci.level),
-                          reps=reps,nodraw=TRUE)
+      } else {
+        aux <- rdsensitivity(Y,Rc,p=p,wlist=wlength,fuzzy=fuzzy,ci=c(wlength,ci.level),
+                             reps=reps,quietly=quietly,seed=seed,nodraw=TRUE)
 
+      }
+      conf.int <- aux$ci
     }
-    conf.int <- aux$ci
+    else {
+      conf.int <- c(ci.lb,ci.ub)
+    }
+    if (is.na(conf.int[1]) | is.na(conf.int[2])){
+      warning('Consider a larger tlist in ci() option.')
+    }
   }
 
 
@@ -535,8 +552,8 @@ rdrandinf <- function(Y,R,
     if (statistic=='ranksum'){statdisp = 'Rank sum z-stat'}
     if (fuzzy.stat=='ar'){
       statdisp <- 'Anderson-Rubin'
-      obs.stat <- NA
-      output[[2]] <- NA
+      #obs.stat <- NA
+      #output[[2]] <- NA
     }
     if (fuzzy.stat=='wald'){statdisp = 'TSLS'}
 
@@ -641,7 +658,12 @@ rdrandinf <- function(Y,R,
 
     if (!missing(ci)){
       cat('\n')
-      cat(paste0((1-ci.level)*100,'% confidence interval: [',conf.int[1],',',conf.int[2],']\n'))
+
+      cat(paste0((1-ci.level)*100,'% confidence interval: [',round(conf.int[1],3),',',round(conf.int[2],3),']\n'))
+
+      if (fuzzy.stat=='wald'){
+        cat('CI based on asymptotic approximation')
+      }
     }
 
     if (!is.null(interfci)){

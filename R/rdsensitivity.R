@@ -1,6 +1,6 @@
 ###############################################################################
 # rdsensitivity: sensitivity analysis for randomization inference in RD
-# !version 0.6 11-May-2020
+# !version 0.7 30-Jul-2020
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -35,7 +35,7 @@
 #' @param evalat specifies the point at which the adjusted variable is evaluated. Allowed options are \code{cutoff} and \code{means}. Default is \code{cutoff}.
 #' @param kernel specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
 #' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
-#' @param ci returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the level of the confidence interval. Default level is .05 (95\% level CI).
+#' @param ci returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the value of alpha for the confidence interval. Default alpha is .05 (95\% level CI).
 #' @param reps number of replications. Default is 1000.
 #' @param seed the seed to be used for the randomization tests.
 #' @param nodraw suppresses contour plot.
@@ -83,6 +83,7 @@ rdsensitivity <- function(Y,R,
   if (cutoff<=min(R,na.rm=TRUE) | cutoff>=max(R,na.rm=TRUE)) stop('Cutoff must be within the range of the running variable')
   if (statistic!='diffmeans' & statistic!='ttest' & statistic!='ksmirnov' & statistic!='ranksum') stop(paste(statistic,'not a valid statistic'))
   if (evalat!='cutoff' & evalat!='means') stop('evalat only admits means or cutoff')
+  if (missing(tlist) & p!=0) stop('need to specify tlist when p>0')
 
   if (seed>0){
     set.seed(seed)
@@ -104,7 +105,7 @@ rdsensitivity <- function(Y,R,
 
   if (missing(wlist)){
     aux <- rdwinselect(Rc,wobs=5,quietly=TRUE)
-    wlist <- round(aux$results[,1],2)
+    wlist <- aux$results[,7]
   }
 
 
@@ -114,9 +115,21 @@ rdsensitivity <- function(Y,R,
 
   if (missing(tlist)){
     D <- as.numeric(Rc >= 0)
-    aux <- lm(Y ~ D)
-    ci.ub <- round(aux$coefficients['D']+1.96*sqrt(vcov(aux)['D','D']),2)
-    ci.lb <- round(aux$coefficients['D']-1.96*sqrt(vcov(aux)['D','D']),2)
+    if (is.null(fuzzy)){
+      Yaux <- Y[abs(Rc)<=wlist[1]]
+      Daux <- D[abs(Rc)<=wlist[1]]
+      aux <- lm(Yaux ~ Daux)
+      ci.ub <- round(aux$coefficients['Daux']+1.96*sqrt(vcov(aux)['Daux','Daux']),2)
+      ci.lb <- round(aux$coefficients['Daux']-1.96*sqrt(vcov(aux)['Daux','Daux']),2)
+    } else {
+      Yaux <- Y[abs(Rc)<=wlist[1]]
+      Daux <- D[abs(Rc)<=wlist[1]]
+      Taux <- fuzzy[abs(Rc)<=wlist[1]]
+      aux <- AER::ivreg(Yaux ~ Taux,~Daux)
+      ci.ub <- round(aux$coefficients['Taux']+1.96*sqrt(vcov(aux)['Taux','Taux']),2)
+      ci.lb <- round(aux$coefficients['Taux']-1.96*sqrt(vcov(aux)['Taux','Taux']),2)
+    }
+
     wstep <- round((ci.ub-ci.lb)/10,2)
     tlist <- seq(ci.lb,ci.ub,by=wstep)
   }
@@ -151,7 +164,7 @@ rdsensitivity <- function(Y,R,
     }
     row <- row + 1
   }
-  if (quietly==FALSE) cat('\nSensitivity analysis complete.\n')
+  if (quietly==FALSE) cat('Sensitivity analysis complete.\n')
 
 
   ###############################################################################
