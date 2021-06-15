@@ -12,7 +12,9 @@ rdwinselect(
   wmin = NULL,
   wobs = NULL,
   wstep = NULL,
+  wsymmetric = FALSE,
   wmasspoints = FALSE,
+  dropmissing = FALSE,
   nwindows = 10,
   statistic = "diffmeans",
   p = 0,
@@ -38,11 +40,15 @@ rdwinselect(
 
 \item{wmin}{the smallest window to be used.}
 
-\item{wobs}{the number of observations to be added at each side of the cutoff at each step. Default is 5}
+\item{wobs}{the number of observations to be added at each side of the cutoff at each step. Default is 5.}
 
 \item{wstep}{the increment in window length.}
 
+\item{wsymmetric}{requires that windows be symmetrized around the cutoff when (\code{wobs} is specified).}
+
 \item{wmasspoints}{specifies that the running variable is discrete and each masspoint should be used as a window.}
+
+\item{dropmissing}{drop rows with missing values in covariates when calculating windows.}
 
 \item{nwindows}{the number of windows to be used. Default is 10.}
 

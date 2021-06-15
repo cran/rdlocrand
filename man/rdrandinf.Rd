@@ -30,8 +30,10 @@ rdrandinf(
   wmin = NULL,
   wobs = NULL,
   wstep = NULL,
+  wsymmetric = FALSE,
   wmasspoints = FALSE,
   nwindows = 10,
+  dropmissing = FALSE,
   rdwstat = "diffmeans",
   approx = FALSE,
   rdwreps = 1000,
@@ -91,9 +93,13 @@ rdrandinf(
 
 \item{wstep}{the increment in window length (if \code{obsstep} is not specified) by the companion command \code{rdwinselect}.  Specifying both \code{obsstep} and \code{wstep} returns an error.}
 
+\item{wsymmetric}{requires that windows be symmetrized around the cutoff when (\code{wobs} is specified).}
+
 \item{wmasspoints}{specifies that the running variable is discrete and each masspoint should be used as a window.}
 
 \item{nwindows}{the number of windows to be used by the companion command \code{rdwinselect}. Default is 10.}
+
+\item{dropmissing}{drop rows with missing values in covariates when calculating windows.}
 
 \item{rdwstat}{the statistic to be used by the companion command \code{rdwinselect} (see corresponding help for options). Default option is \code{ttest}.}
 

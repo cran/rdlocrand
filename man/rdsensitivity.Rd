@@ -9,13 +9,15 @@ rdsensitivity(
   R,
   cutoff = 0,
   wlist,
+  wlist_left,
   tlist,
   statistic = "diffmeans",
   p = 0,
   evalat = "cutoff",
   kernel = "uniform",
   fuzzy = NULL,
-  ci,
+  ci = NULL,
+  ci_alpha = 0.05,
   reps = 1000,
   seed = 666,
   nodraw = FALSE,
@@ -29,7 +31,9 @@ rdsensitivity(
 
 \item{cutoff}{the RD cutoff (default is 0).}
 
-\item{wlist}{the list of window lengths to be evaluated. By default the program constructs 10 windows around the cutoff, the first one including 10 treated and control observations and adding 5 observations to each group in subsequent windows.}
+\item{wlist}{the list of windows to the right of the cutoff. By default the program constructs 10 windows around the cutoffwith 5 observations each.}
+
+\item{wlist_left}{the list of windows  to the left of the cutoff. If not specified, the windows are constructed symmetrically around the cutoff based on the values in wlist.}
 
 \item{tlist}{the list of values of the treatment effect under the null to be evaluated. By default the program employs ten evenly spaced points within the asymptotic confidence interval for a constant treatment effect in the smallest window to be used.}
 
@@ -43,7 +47,9 @@ rdsensitivity(
 
 \item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
 
-\item{ci}{returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the value of alpha for the confidence interval. Default alpha is .05 (95\% level CI).}
+\item{ci}{returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a two-dimensional vector indicating the left and right limits of the window. Default alpha is .05 (95\% level CI).}
+
+\item{ci_alpha}{Specifies value of alpha for the confidence interval. Default alpha is .05 (95\% level CI).}
 
 \item{reps}{number of replications. Default is 1000.}
 

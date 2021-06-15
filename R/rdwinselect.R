@@ -1,6 +1,6 @@
 ###############################################################################
 # rdwinselect: window selection for randomization inference in RD
-# !version 0.7.1 23-Aug-2020
+# !version 0.8 14-Jun-2021
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -33,10 +33,12 @@
 #' @param cutoff the RD cutoff (default is 0).
 #' @param obsmin the minimum number of observations above and below the cutoff in the smallest window. Default is 10.
 #' @param wmin the smallest window to be used.
-#' @param wobs the number of observations to be added at each side of the cutoff at each step. Default is 5
+#' @param wobs the number of observations to be added at each side of the cutoff at each step. Default is 5.
+#' @param wsymmetric requires that windows be symmetrized around the cutoff when (\code{wobs} is specified).
 #' @param wmasspoints specifies that the running variable is discrete and each masspoint should be used as a window.
 #' @param wstep the increment in window length.
 #' @param nwindows the number of windows to be used. Default is 10.
+#' @param dropmissing drop rows with missing values in covariates when calculating windows.
 #' @param statistic the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic), \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic) and \code{hotelling} (Hotelling's T-squared statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.
 #' @param p the order of the polynomial for outcome adjustment model (for covariates). Default is 0.
 #' @param evalat specifies the point at which the adjusted variable is evaluated. Allowed options are \code{cutoff} and \code{means}. Default is \code{cutoff}.
@@ -74,11 +76,13 @@
 
 rdwinselect <- function(R, X,
                        cutoff = 0,
-                       obsmin=NULL,
+                       obsmin = NULL,
                        wmin = NULL,
                        wobs = NULL,
                        wstep = NULL,
+                       wsymmetric = FALSE,
                        wmasspoints = FALSE,
+                       dropmissing = FALSE,
                        nwindows = 10,
                        statistic = 'diffmeans',
                        p = 0,
@@ -117,28 +121,24 @@ rdwinselect <- function(R, X,
   Rc <- R - cutoff
   D <- Rc >= 0
 
-  # if (!missing(X)){
-  #   data <- data.frame(Rc,D,X)
-  #   data <- data[complete.cases(data),]
-  #   data <- data[order(data$Rc),]
-  #   Rc <- data[,1]
-  #   D <- data[,2]
-  #   X <- data[,c(-1,-2)]
-  # } else {
-  #   data <- data.frame(Rc,D)
-  #   data <- data[complete.cases(data),]
-  #   data <- data[order(data$Rc),]
-  #   Rc <- data[,1]
-  #   D <- data[,2]
-  # }
-
   if (!missing(X)){
-    data <- data.frame(Rc,D,X)
-    data <- data[complete.cases(data[,1:2]),]
-    data <- data[order(data$Rc),]
-    Rc <- data[,1]
-    D <- data[,2]
-    X <- data[,c(-1,-2)]
+    if (dropmissing==FALSE){
+      data <- data.frame(Rc,D,X)
+      data <- data[complete.cases(data[,1:2]),]
+      data <- data[order(data$Rc),]
+      Rc <- data[,1]
+      D <- data[,2]
+      X <- data[,c(-1,-2)]
+    } else {
+      data <- data.frame(Rc,D,X)
+      data <- data[complete.cases(data),]
+      data <- data[order(data$Rc),]
+      Rc <- data[,1]
+      D <- data[,2]
+      X <- data[,c(-1,-2)]
+    }
+
+
   } else{
     data <- data.frame(Rc,D)
     data <- data[complete.cases(data),]
@@ -148,7 +148,6 @@ rdwinselect <- function(R, X,
   }
 
   if (!missing(X)){X <- as.matrix(X)}
-  #if (!is.null(seed)){set.seed(seed)}
   if (seed>0){
     set.seed(seed)
   } else if (seed!=-1){
@@ -181,85 +180,88 @@ rdwinselect <- function(R, X,
 
   ## Define initial window
 
-  # if (!is.null(wmin)){
-  #   if (!is.null(obsmin)){
-  #     stop('Cannot specify both obsmin and wmin')
-  #   } else{
-  #     obsmin <- 10
-  #   }
-  # } else{
-  #   if (is.null(obsmin)){
-  #     obsmin <- 10
-  #   }
-  #   posl <- sum(Rc<0,na.rm=TRUE)
-  #   posr <- posl + 1
-  #   wmin <- findwobs(obsmin,1,posl,posr,Rc,dups)
-  # }
+  if (is.null(wmin)){
+    posl <- n0
+    posr <- n0 + 1
 
-  if (wmasspoints==FALSE){
-    if (is.null(wmin)){
-      posl <- n0
-      posr <- n0 + 1
-      if (is.null(obsmin)){
-        obsmin <- 10
-      }
-      wmin <- findwobs(obsmin,1,posl,posr,Rc,dups)
+    if (is.null(obsmin)){
+      obsmin <- 10
+    }
+    if (wmasspoints==TRUE){
+      obsmin <- 1
+    }
+    if (!is.null(obsstep)){
+      wmin <- findwobs_sym(obsmin,1,posl,posr,Rc,dups)
+    }
+    if (missing(wsymmetric)){
+      tmp <- findwobs(obsmin,1,posl,posr,Rc,dups)
+      wmin_left <- tmp$wlength_left
+      posmin_left <- tmp$poslist_left
+      wmin_right <- tmp$wlength_right
+      posmin_right <- tmp$poslist_right
+    } else{
+      wmin_right <- findwobs_sym(obsmin,1,posl,posr,Rc,dups)
+      wmin_left <- -wmin_right
+    }
+
+  } else{
+    wcount <- length(wmin)
+    if (wcount==1){
+      wmin_right <- wmin
+      wmin_left <- -wmin
+      posmin_right <- n0 + sum(Rc<=wmin & Rc>=0)
+      posmin_left <- n0 - sum(Rc<0 & Rc>=-wmin) + 1
+    } else if(wcount==2){
+      wmin_left <- wmin[1]
+      wmin_right <- wmin[2]
+      posmin_right <- n0 + sum(Rc<=wmin_right & Rc>=0)
+      posmin_left <- n0 - sum(Rc<0 & Rc>=wmin_left) + 1
+    } else{
+      stop('wmin option incorrectly specified')
     }
   }
 
+
   ###############################################################################
-  # Define step
+  # Define window list
   ###############################################################################
 
-  # if (is.null(wstep) & is.null(wobs)){
-  #   if (is.null(obsstep)){
-  #     obsstep <- 2
-  #   }
-  #   wstep <- findstep(Rc,D,obsmin,obsstep,10)
-  #   window.list <- seq(from=wmin,by=wstep,length.out=nwindows)
-  # } else if (!is.null(wstep)){
-  #   if (!is.null(wobs)){
-  #     stop('Cannot specify both wobs and wstep')
-  #   }
-  #   if (!is.null(obsstep)){
-  #     stop('Cannot specify both obsstep and wstep')
-  #   }
-  #   window.list <- seq(from=wmin,by=wstep,length.out=nwindows)
-  # } else if (!is.null(wobs)){
-  #   pos0 <- sum(Rc<0,na.rm=TRUE)
-  #   posl <- pos0 - sum(Rc<0 & Rc>=-wmin,na.rm=TRUE)
-  #   posr <- pos0 + 1 + sum(Rc>=0 & Rc<wmin,na.rm=TRUE)
-  #   window.list <- findwobs(wobs,nwindows-1,posl,posr,Rc[!is.na(Rc)],dups[!is.na(Rc)])
-  #   window.list <- c(wmin,window.list)
-  # }
-
-
-
-  if (wmasspoints==FALSE){
-    if (!is.null(obsstep)){
-      cat('Warning: obsstep included for bacwkard compatibility only.')
-      cat('\n')
-      cat('The use of wstep and wobs is recommended.')
-      wstep <- findstep(Rc,D,obsmin,obsstep,10)
-      wlist <- seq(from=wmin,by=wstep,length.out=nwindows)
-    } else if (!is.null(wstep)){
-      wlist <- seq(from=wmin,by=wstep,length.out=nwindows)
+  if (!is.null(obsstep)){
+    warning('obsstep included for bacwkard compatibility only. \n The use of wstep and wobs is recommended.')
+    wstep <- findstep(Rc,D,obsmin,obsstep,10)
+    wlist_right <- seq(from=wmin,by=wstep,length.out=nwindows)
+    wlist_left <- NULL
+  } else if (!is.null(wstep)){
+    wmax_left <- max(wmin_left - wstep*(nwindows-1),min(Rc))
+    wmax_right <- min(wmin_right + wstep*(nwindows-1),max(Rc))
+    wlist_left <- sort(seq(from=wmax_left,to=wmin_left,by=wstep),decreasing=TRUE)
+    wlist_right <- seq(from=wmin_right,to=wmax_right,by=wstep)
+  } else {
+    if (is.null(wobs)){
+      wobs <- 5
+    }
+    if (wmasspoints==TRUE){
+      wobs <- 1
+    }
+    posl <- max(n0 - sum(Rc<0 & Rc>=wmin_left),1)
+    posr <- min(n0 + 1 + sum(Rc>=0 & Rc<=wmin_right),n)
+    if (wsymmetric==FALSE){
+      tmp <- findwobs(wobs,nwindows-1,posl,posr,Rc,dups)
+      wlist_left <- c(wmin_left,tmp$wlist_left)
+      poslist_left <- c(posmin_left,tmp$poslist_left)
+      wlist_right <- c(wmin_right,tmp$wlist_right)
+      poslist_right <- c(posmin_right,tmp$poslist_right)
     } else{
-      if (is.null(wobs)){
-        wobs <- 5
-      }
-      #posl <- n0 - sum(Rc>=-wmin & Rc<0)
-      #posr <- n0 + 1 + sum(Rc>=0 & Rc<=wmin)
-      posl <- n0 - sum(round(Rc,8)>=round(-wmin,8) & Rc<0)
-      posr <- n0 + 1 + sum(Rc>=0 & round(Rc,8)<=round(wmin,8))
-      wlist <- findwobs(wobs,nwindows-1,posl,posr,Rc,dups)
-      wlist <- c(wmin,wlist)
+      wlist <- findwobs_sym(wobs,nwindows-1,posl,posr,Rc,dups)
+      wlist_right <- c(wmin_right,wlist)
+      wlist_left <- c(wmin_left,wlist)
     }
-    nmax <- min(nwindows,length(wlist))
-    if (nmax<nwindows){
-      cat(paste('Warning: not enough observations to calculate',nwindows,'windows')); cat('\n')
-      cat('Consider changing wmin(), wobs() or wstep().')
-    }
+  }
+
+  nmax <- min(nwindows,length(wlist_right))
+  if (nmax<nwindows){
+    cat('\n')
+    warning('Not enough observations to calculate all windows. \n Consider changing wmin(), wobs() or wstep().')
   }
 
 
@@ -349,13 +351,12 @@ rdwinselect <- function(R, X,
   ###############################################################################
 
   table_rdw <- array(NA,dim=c(nmax,7))
-  #col <- 1
 
   ## Being main panel display
 
   if (quietly==FALSE){
     cat(paste0(rep('=',80),collapse='')); cat('\n')
-    cat(format('Window length / 2', width = 19,justify='right'))
+    cat(format('Window',            width = 19,justify='centre'))
     cat(format('p-value ',          width = 11,justify='right'))
     cat(format('Var. name',         width = 16,justify='right'))
     cat(format('Bin.test',          width = 12,justify='right'))
@@ -364,29 +365,25 @@ rdwinselect <- function(R, X,
     cat(paste0(rep('=',80),collapse='')); cat('\n')
   }
 
-  #for (w in wlist){
-
   for (j in 1:nmax){
 
-    if (wmasspoints==FALSE){
-      w <- wlist[j]
-      wupper <- w
-      wlower <- -w
-    } else {
-      tmpu <- min(j,length(mp_right))
-      wupper <- mp_right[tmpu]
-      tmpl <- max(1,length(mp_left)+1-j)
-      wlower <- mp_left[tmpl]
-      wlist[1,j] <- wlower
-      wlist[2,j] <- wupper
-      w <- max(abs(wupper-cutoff),abs(cutoff-wlower))
+    if (wsymmetric==FALSE & is.null(wstep) & is.null(obsstep)){
+      wlower <- wlist_left[j]
+      wupper <- wlist_right[j]
+
+      position_l <- poslist_left[j]
+      position_r <- poslist_right[j]
+
+      ww <- (Rc>=Rc[position_l] & Rc<=Rc[position_r])
+
+    } else{
+      wupper <- wlist_right[j]
+      wlower <- -wupper
+      wlist_left[j] <- wlower
+
+      ww <- (Rc>=wlower & Rc<=wupper)
+
     }
-
-    table_rdw[j,6] <- wlower
-    table_rdw[j,7] <- wupper
-
-    ww <- (round(Rc,8) >= round(wlower,8)) & (round(Rc,8) <= round(wupper,8))
-    #ww <- (Rc >= wlower) & (Rc <= wupper)
 
     Dw <- D[ww]
     Rw <- Rc[ww]
@@ -395,7 +392,7 @@ rdwinselect <- function(R, X,
 
     if (!missing(X)){
       Xw <- X[ww,]
-      data <- cbind(Rw,Dw,Xw)
+      data <- data.frame(Rw,Dw,Xw)
       data <- data[complete.cases(data),]
       Rw <- data[,1]
       Dw <- data[,2]
@@ -415,119 +412,129 @@ rdwinselect <- function(R, X,
     table_rdw[j,4] <- n0.w
     table_rdw[j,5] <- n1.w
 
-    ## Binomial test
-
-    bitest <- binom.test(sum(Dw),length(Dw),p=0.5)
-    table_rdw[j,3] <- bitest$p.value
-
-    if (!missing(X)){
-
-      ## Weights
-
-      kweights <- rep(1,n.w)
-
-      if (kernel=='triangular'){
-        kweights <- (1-abs(Rw/w))*(abs(Rw/w)<=1)
-        kweights[kweights==0] <- .Machine$double.eps
-      }
-      if (kernel=='epan'){
-        kweights <- .75*(1-(Rw/w)^2)*(abs(Rw/w)<=1)
-        kweights[kweights==0] <- .Machine$double.eps
-      }
-
-      ## Model adjustment
-
-      if (p>0){
-
-        X.adj <- matrix(NA,nrow=nrow(Xw),ncol=ncol(Xw))
-
-        if (evalat=='cutoff'){
-          evall <- cutoff
-          evalr <- cutoff
-        } else if (evalat=='means'){
-          evall <- mean(Rw[Dw==0]) + cutoff
-          evalr <- mean(Rw[Dw==1]) + cutoff
-        }
-        R.adj <- Rw + cutoff - Dw*evalr - (1-Dw)*evall
-        Rpoly <- poly(R.adj,order=p,raw=TRUE)
-
-        for (k in 1:ncol(Xw)){
-          lfit.t <- lm(Xw[Dw==1,k] ~ Rpoly[Dw==1,],weights=kweights[Dw==1])
-          X.adj[Dw==1,k] <- lfit.t$residuals + lfit.t$coefficients[1]
-          lfit.c <- lm(Xw[Dw==0,k] ~ Rpoly[Dw==0,],weights=kweights[Dw==0])
-          X.adj[Dw==0,k] <- lfit.c$residuals + lfit.c$coefficients[1]
-        }
-        Xw <- X.adj
-      }
-
-      ## Statistics and p-values
-
-      if (statistic=='hotelling'){
-        aux <- hotelT2(Xw,Dw)
-        obs.stat <- as.numeric(aux$statistic)
-        if (approx==FALSE){
-          stat.distr <- array(NA,dim=c(reps,1))
-          for (i in 1:reps){
-            D.sample <- sample(Dw,replace=FALSE)
-            aux.sample <- hotelT2(Xw,D.sample)
-            obs.stat.sample <- as.numeric(aux.sample$statistic)
-            stat.distr[i] <- obs.stat.sample
-          }
-          p.value <- mean(abs(stat.distr) >= abs(obs.stat))
-        } else {
-          p.value <- as.numeric(aux$p.value)
-        }
-        table_rdw[j,1] <- p.value
-        varname <- NA
-      } else {
-        aux <- rdrandinf.model(Xw,Dw,statistic=statistic,kweights=kweights,pvalue=TRUE)
-        obs.stat <- as.numeric(aux$statistic)
-        if (approx==FALSE){
-          stat.distr <- array(NA,dim=c(reps,ncol(X)))
-          for (i in 1:reps){
-            D.sample <- sample(Dw,replace=FALSE)
-            aux.sample <- rdrandinf.model(Xw,D.sample,statistic=statistic,kweights=kweights)
-            obs.stat.sample <- as.numeric(aux.sample$statistic)
-            stat.distr[i,] <- obs.stat.sample
-          }
-          p.value <- rowMeans(t(abs(stat.distr)) >= abs(obs.stat))
-        } else {
-          if (p==0){
-            p.value <- as.numeric(aux$p.value)
-          } else {
-            p.value <- numeric(ncol(X))
-            for (k in 1:ncol(X)){
-              lfit <- lm(Xw[,k] ~ Dw + Rpoly + Dw*Rpoly,weights=kweights)
-              tstat <- lfit$coefficients['Dw']/sqrt(sandwich::vcovHC(lfit,type='HC2')['Dw','Dw'])
-              p.value[k] <- 2*pnorm(-abs(tstat))
-            }
-          }
-        }
-
-        table_rdw[j,1] <- min(p.value)
-        tmp <- which.min(p.value)
-        table_rdw[j,2] <- tmp
-
-        if (!is.null(colnames(X)[tmp])){
-          if (colnames(X)[tmp]!='') {
-            varname <- substring(colnames(X)[tmp],1,15)
-          }
-          else{
-            varname <- tmp
-          }
-        } else {
-          varname <- tmp
-        }
-      }
-
-    } else {
+    if (n0.w==0 | n1.w==0){
       table_rdw[j,1] <- NA
       table_rdw[j,2] <- NA
-      varname <- NA
+      varname <- ''
+    } else{
+
+      ## Binomial test
+
+      bitest <- binom.test(sum(Dw),length(Dw),p=0.5)
+      table_rdw[j,3] <- bitest$p.value
+
+      if (!missing(X)){
+
+        ## Weights
+
+        kweights <- rep(1,n.w)
+
+        if (kernel=='triangular'){
+          kweights <- (1-abs(Rw/wupper))*(abs(Rw/wupper)<=1)
+          kweights[kweights==0] <- .Machine$double.eps
+        }
+        if (kernel=='epan'){
+          kweights <- .75*(1-(Rw/wupper)^2)*(abs(Rw/wupper)<=1)
+          kweights[kweights==0] <- .Machine$double.eps
+        }
+
+        ## Model adjustment
+
+        if (p>0){
+
+          X.adj <- matrix(NA,nrow=nrow(Xw),ncol=ncol(Xw))
+
+          if (evalat=='cutoff'){
+            evall <- cutoff
+            evalr <- cutoff
+          } else if (evalat=='means'){
+            evall <- mean(Rw[Dw==0]) + cutoff
+            evalr <- mean(Rw[Dw==1]) + cutoff
+          }
+          R.adj <- Rw + cutoff - Dw*evalr - (1-Dw)*evall
+          Rpoly <- poly(R.adj,order=p,raw=TRUE)
+
+          for (k in 1:ncol(Xw)){
+            lfit.t <- lm(Xw[Dw==1,k] ~ Rpoly[Dw==1,],weights=kweights[Dw==1])
+            X.adj[Dw==1,k] <- lfit.t$residuals + lfit.t$coefficients[1]
+            lfit.c <- lm(Xw[Dw==0,k] ~ Rpoly[Dw==0,],weights=kweights[Dw==0])
+            X.adj[Dw==0,k] <- lfit.c$residuals + lfit.c$coefficients[1]
+          }
+          Xw <- X.adj
+        }
+
+        ## Statistics and p-values
+
+        if (statistic=='hotelling'){
+          aux <- hotelT2(Xw,Dw)
+          obs.stat <- as.numeric(aux$statistic)
+          if (approx==FALSE){
+            stat.distr <- array(NA,dim=c(reps,1))
+            for (i in 1:reps){
+              D.sample <- sample(Dw,replace=FALSE)
+              aux.sample <- hotelT2(Xw,D.sample)
+              obs.stat.sample <- as.numeric(aux.sample$statistic)
+              stat.distr[i] <- obs.stat.sample
+            }
+            p.value <- mean(abs(stat.distr) >= abs(obs.stat))
+          } else {
+            p.value <- as.numeric(aux$p.value)
+          }
+          table_rdw[j,1] <- p.value
+          varname <- NA
+        } else {
+          aux <- rdrandinf.model(Xw,Dw,statistic=statistic,kweights=kweights,pvalue=TRUE)
+          obs.stat <- as.numeric(aux$statistic)
+          if (approx==FALSE){
+            stat.distr <- array(NA,dim=c(reps,ncol(X)))
+            for (i in 1:reps){
+              D.sample <- sample(Dw,replace=FALSE)
+              aux.sample <- rdrandinf.model(Xw,D.sample,statistic=statistic,kweights=kweights)
+              obs.stat.sample <- as.numeric(aux.sample$statistic)
+              stat.distr[i,] <- obs.stat.sample
+            }
+            p.value <- rowMeans(t(abs(stat.distr)) >= abs(obs.stat))
+          } else {
+            if (p==0){
+              p.value <- as.numeric(aux$p.value)
+            } else {
+              p.value <- numeric(ncol(X))
+              for (k in 1:ncol(X)){
+                lfit <- lm(Xw[,k] ~ Dw + Rpoly + Dw*Rpoly,weights=kweights)
+                tstat <- lfit$coefficients['Dw']/sqrt(sandwich::vcovHC(lfit,type='HC2')['Dw','Dw'])
+                p.value[k] <- 2*pnorm(-abs(tstat))
+              }
+            }
+          }
+
+          table_rdw[j,1] <- min(p.value)
+          tmp <- which.min(p.value)
+          table_rdw[j,2] <- tmp
+
+          if (!is.null(colnames(X)[tmp])){
+            if (colnames(X)[tmp]!='') {
+              varname <- substring(colnames(X)[tmp],1,15)
+            }
+            else{
+              varname <- tmp
+            }
+          } else {
+            varname <- tmp
+          }
+        }
+
+      } else {
+        table_rdw[j,1] <- NA
+        table_rdw[j,2] <- NA
+        varname <- NA
+      }
     }
+    table_rdw[j,6] <- wlower
+    table_rdw[j,7] <- wupper
 
     if (quietly==FALSE){
-      cat(format(sprintf('%6.3f',w),                width = 19,justify='right'))
+      cat(format(sprintf('%6.4f',wlower+cutoff),    width = 9,justify='right'))
+      cat(format(sprintf('%6.4f',wupper+cutoff),    width = 9,justify='right'))
       cat(format(sprintf('%1.3f',table_rdw[j,1],3), width = 11,justify='right'))
       cat(format(varname,                           width = 16,justify='right'))
       cat(format(sprintf('%1.3f',table_rdw[j,3],3), width = 12,justify='right'))
@@ -535,7 +542,6 @@ rdwinselect <- function(R, X,
       cat(format(sprintf('%6.0f',table_rdw[j,5]),   width = 11,justify='right'))
       cat('\n')
     }
-    #col <- col + 1
   }
 
   if (quietly==FALSE){
@@ -548,20 +554,8 @@ rdwinselect <- function(R, X,
 
   if (!missing(X)){
     Pvals <- table_rdw[,1]
-    # if (all(Pvals>level)){
-    #   tmp <- length(Pvals)
-    # } else if (){
-    #
-    # }else {
-    #   tmp <- min(which(Pvals<level))
-    #   if (tmp==1){
-    #     cat('Smallest window does not pass covariate test. Decrease smallest window or reduce level')
-    #   } else {
-    #     tmp <- tmp - 1
-    #   }
-    # }
 
-    if (Pvals[1]<level){
+    if (!is.na(Pvals[1]) & Pvals[1]<level){
       cat('\n')
       cat('Smallest window does not pass covariate test.')
       cat('\n')
@@ -571,21 +565,16 @@ rdwinselect <- function(R, X,
       rec_window <- NA
     } else if (all(Pvals>=level)){
       tmp <- length(Pvals)
-      #rec_length <- wlist[tmp]
-      #rec_window <- c(cutoff-rec_length,cutoff+rec_length)
       rec_window <- c(cutoff+table_rdw[tmp,6],cutoff+table_rdw[tmp,7])
     } else{
       tmp <- min(which(Pvals<level))
       tmp <- tmp - 1
-      rec_length <- wlist[tmp]
-      #rec_window <- c(cutoff-rec_length,cutoff+rec_length)
       rec_window <- c(cutoff+table_rdw[tmp,6],cutoff+table_rdw[tmp,7])
     }
 
-
     if (quietly==FALSE & tmp!=-1){
       cat('\n')
-      cat(paste0('Recommended window is [',round(rec_window[1],3),';',round(rec_window[2],3),'] with ',table_rdw[tmp,4]+table_rdw[tmp,5],' observations (',
+      cat(paste0('Recommended window is [',round(rec_window[1],4),';',round(rec_window[2],4),'] with ',table_rdw[tmp,4]+table_rdw[tmp,5],' observations (',
                  table_rdw[tmp,4],' below, ',table_rdw[tmp,5],' above).'))
       cat('\n\n')
     }
@@ -607,7 +596,7 @@ rdwinselect <- function(R, X,
 
   if (plot==TRUE){
     if (!missing(X)){
-      plot(wlist,Pvals)
+      plot(wlist_right,Pvals)
     } else {
       stop('Cannot draw plot without covariates')
     }
@@ -621,12 +610,12 @@ rdwinselect <- function(R, X,
   colnames(table_sumstats) <- c('Left of c','Right of c')
   rownames(table_sumstats) <- c('Number of obs','1th percentile','5th percentile','10th percentile','20th percentile')
 
-  #table_rdw <- cbind(wlist,table_rdw)
-  #colnames(table_rdw) <- c('W.length','p-value','Variable','Bi.test','Obs<c','Obs>=c')
   colnames(table_rdw) <- c('p-value','Variable','Bi.test','Obs<c','Obs>=c','w_left','w_right')
 
-  output <- list(window  = rec_window,
-                 wlist   = wlist,
+  output <- list(w_left  = rec_window[1],
+                 w_right = rec_window[2],
+                 wlist_left = wlist_left,
+                 wlist_right = wlist_right,
                  results = table_rdw,
                  summary = table_sumstats)
 

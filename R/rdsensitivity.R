@@ -1,6 +1,6 @@
 ###############################################################################
 # rdsensitivity: sensitivity analysis for randomization inference in RD
-# !version 0.7.1 23-Aug-2020
+# !version 0.8 14-Jun-2021
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -26,14 +26,16 @@
 #' @param Y a vector containing the values of the outcome variable.
 #' @param R a vector containing the values of the running variable.
 #' @param cutoff the RD cutoff (default is 0).
-#' @param wlist the list of window lengths to be evaluated. By default the program constructs 10 windows around the cutoff, the first one including 10 treated and control observations and adding 5 observations to each group in subsequent windows.
+#' @param wlist the list of windows to the right of the cutoff. By default the program constructs 10 windows around the cutoffwith 5 observations each.
+#' @param wlist_left the list of windows  to the left of the cutoff. If not specified, the windows are constructed symmetrically around the cutoff based on the values in wlist.
 #' @param tlist the list of values of the treatment effect under the null to be evaluated. By default the program employs ten evenly spaced points within the asymptotic confidence interval for a constant treatment effect in the smallest window to be used.
 #' @param statistic the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic) and \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.
 #' @param p the order of the polynomial for outcome adjustment model. Default is 0.
 #' @param evalat specifies the point at which the adjusted variable is evaluated. Allowed options are \code{cutoff} and \code{means}. Default is \code{cutoff}.
 #' @param kernel specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
 #' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
-#' @param ci returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a scalar or a two-dimensional vector, where the first value needs to be one of the values in \code{wlist}. The second value, if specified, indicates the value of alpha for the confidence interval. Default alpha is .05 (95\% level CI).
+#' @param ci returns the confidence interval corresponding to the indicated window length. \code{ci} has to be a two-dimensional vector indicating the left and right limits of the window. Default alpha is .05 (95\% level CI).
+#' @param ci_alpha Specifies value of alpha for the confidence interval. Default alpha is .05 (95\% level CI).
 #' @param reps number of replications. Default is 1000.
 #' @param seed the seed to be used for the randomization tests.
 #' @param nodraw suppresses contour plot.
@@ -59,29 +61,36 @@
 
 
 rdsensitivity <- function(Y,R,
-                         cutoff = 0,
-                         wlist,
-                         tlist,
-                         statistic = 'diffmeans',
-                         p = 0,
-                         evalat = 'cutoff',
-                         kernel = 'uniform',
-                         fuzzy = NULL,
-                         ci,
-                         reps = 1000,
-                         seed = 666,
-                         nodraw = FALSE,
-                         quietly = FALSE){
+                          cutoff = 0,
+                          wlist,
+                          wlist_left,
+                          tlist,
+                          statistic = 'diffmeans',
+                          p = 0,
+                          evalat = 'cutoff',
+                          kernel = 'uniform',
+                          fuzzy = NULL,
+                          ci = NULL,
+                          ci_alpha = 0.05,
+                          reps = 1000,
+                          seed = 666,
+                          nodraw = FALSE,
+                          quietly = FALSE){
 
 
   ###############################################################################
   # Parameters and error checking
   ###############################################################################
 
-  if (cutoff<=min(R,na.rm=TRUE) | cutoff>=max(R,na.rm=TRUE)) stop('Cutoff must be within the range of the running variable')
+  if (cutoff<min(R,na.rm=TRUE) | cutoff>max(R,na.rm=TRUE)) stop('Cutoff must be within the range of the running variable')
   if (statistic!='diffmeans' & statistic!='ttest' & statistic!='ksmirnov' & statistic!='ranksum') stop(paste(statistic,'not a valid statistic'))
   if (evalat!='cutoff' & evalat!='means') stop('evalat only admits means or cutoff')
   if (missing(tlist) & p!=0) stop('need to specify tlist when p>0')
+  if (!missing(wlist_left)){
+    if (missing(wlist)) stop('Need to specify wlist when wlist_left is specified')
+    if (length(wlist)!=length(wlist_left)) stop('Lengths of wlist and wlist_left need to coincide')
+  }
+  if(!is.null(ci) & length(ci)!=2) stop('Need to specify wleft and wright in CI option')
 
   if (seed>0){
     set.seed(seed)
@@ -104,8 +113,20 @@ rdsensitivity <- function(Y,R,
   if (missing(wlist)){
     aux <- rdwinselect(Rc,wobs=5,quietly=TRUE)
     wlist <- aux$results[,7]
+    wlist <- aux$results[,6]
+  } else{
+    wlist_orig <- wlist
+    wlist <- wlist - cutoff
+    if(missing(wlist_left)){
+      wlist_left <- -wlist
+      wlist_left_orig <- wlist_left
+    } else{
+      wlist_left_orig <- wlist_left
+      wlist_left <- wlist_left - cutoff
+    }
   }
 
+  wnum <- length(wlist)
 
   ###############################################################################
   # Default tau list
@@ -113,19 +134,20 @@ rdsensitivity <- function(Y,R,
 
   if (missing(tlist)){
     D <- as.numeric(Rc >= 0)
+    wfirst <- max(wlist[1],abs(wlist_left[1]))
     if (is.null(fuzzy)){
-      Yaux <- Y[abs(Rc)<=wlist[1]]
-      Daux <- D[abs(Rc)<=wlist[1]]
+      Yaux <- Y[abs(Rc)<=wfirst]
+      Daux <- D[abs(Rc)<=wfirst]
       aux <- lm(Yaux ~ Daux)
       ci.ub <- round(aux$coefficients['Daux']+1.96*sqrt(vcov(aux)['Daux','Daux']),2)
       ci.lb <- round(aux$coefficients['Daux']-1.96*sqrt(vcov(aux)['Daux','Daux']),2)
     } else {
-      Yaux <- Y[abs(Rc)<=wlist[1]]
-      Daux <- D[abs(Rc)<=wlist[1]]
-      Taux <- fuzzy[abs(Rc)<=wlist[1]]
+      Yaux <- Y[abs(Rc)<=wfirst]
+      Daux <- D[abs(Rc)<=wfirst]
+      Taux <- fuzzy[abs(Rc)<=wfirst]
       aux <- AER::ivreg(Yaux ~ Taux,~Daux)
-      ci.ub <- round(aux$coefficients['Taux']+1.96*sqrt(vcov(aux)['Taux','Taux']),2)
-      ci.lb <- round(aux$coefficients['Taux']-1.96*sqrt(vcov(aux)['Taux','Taux']),2)
+      ci.ub <- round(aux$coefficients[2]+1.96*sqrt(vcov(aux)[2,2]),2)
+      ci.lb <- round(aux$coefficients[2]-1.96*sqrt(vcov(aux)[2,2]),2)
     }
 
     wstep <- round((ci.ub-ci.lb)/10,2)
@@ -139,12 +161,14 @@ rdsensitivity <- function(Y,R,
 
   results <- array(NA,dim=c(length(tlist),length(wlist)))
   if (quietly==FALSE) {cat('\nRunning sensitivity analysis...\n')}
+
   row <- 1
   for (t in tlist){
-    col <- 1
-    for (w in wlist){
+    for (w in 1:wnum){
+      wright <- wlist[w]
+      wleft <- wlist_left[w]
       if (evalat=='means'){
-        ww <- (round(Rc,8) >= round(-w,8)) & (round(Rc,8) <= round(w,8))
+        ww <- (round(Rc,8) >= round(wleft,8)) & (round(Rc,8) <= round(wright,8))
         Rw <- R[ww]
         Dw <- D[ww]
         evall <- mean(Rw[Dw==0])
@@ -154,11 +178,10 @@ rdsensitivity <- function(Y,R,
         evalr <- NULL
       }
 
-      aux <- rdrandinf(Y,Rc,wl=-w,wr=w,p=p,reps=reps,nulltau=t,
-                      statistic=statistic,kernel=kernel,evall=evall,evalr=evalr,
-                      fuzzy=fuzzy,seed=seed,quietly=TRUE)
-      results[row,col] <- aux$p.value
-      col <- col + 1
+      aux <- rdrandinf(Y,Rc,wl=wleft,wr=wright,p=p,reps=reps,nulltau=t,
+                       statistic=statistic,kernel=kernel,evall=evall,evalr=evalr,
+                       fuzzy=fuzzy,seed=seed,quietly=TRUE)
+      results[row,w] <- aux$p.value
     }
     row <- row + 1
   }
@@ -169,35 +192,16 @@ rdsensitivity <- function(Y,R,
   # Confidence interval
   ###############################################################################
 
-  if (!missing(ci)){
-    ci.window <- ci[1]
-    if (length(ci)>1){
-      ci.level <- ci[2]
-      if (ci.level<=0 | ci.level>=1){stop('ci level has to be between 0 and 1')}
-    }else {
-      ci.level <- .05
-    }
-    if (is.element(ci.window,wlist)==TRUE){
-      col <- which(wlist==ci.window)
+  if (!is.null(ci)){
+    ci.window.l <- ci[1] - cutoff
+    ci.window.r <- ci[2] - cutoff
+
+    if (is.element(ci.window.r,wlist)==TRUE & is.element(ci.window.l,wlist_left)==TRUE){
+      col <- which(wlist==ci.window.r)
       aux <- results[,col]
-      if (all(aux>ci.level)){
-        index.lb <- 1
-        index.ub <- length(aux)
-        ci.lb <- tlist[index.lb]
-        ci.ub <- tlist[index.ub]
-      } else if (all(aux<ci.level)){
-        warning('no valid confidence interval in specified window grid')
-        ci.lb <- NA
-        ci.ub <- NA
-      } else {
-        index.lb <- min(which(aux>=.05))
-        index.ub <- max(which(aux>=.05))
-        ci.lb <- tlist[index.lb]
-        ci.ub <- tlist[index.ub]
-      }
 
-
-      conf.int <- c(ci.lb,ci.ub)
+      conf.int <- find_CI(aux,ci_alpha,tlist)
+      rownames(conf.int) <- NULL
 
     } else{
       stop('window specified in ci not in wlist')
@@ -209,10 +213,10 @@ rdsensitivity <- function(Y,R,
   # Output
   ###############################################################################
 
-  if (missing(ci)){
-    output <- list(tlist = tlist, wlist = wlist, results = results)
+  if (is.null(ci)){
+    output <- list(tlist = tlist, wlist = wlist_orig, wlist_left = wlist_left_orig, results = results)
   } else {
-    output <- list(tlist = tlist, wlist = wlist, results = results, ci = conf.int)
+    output <- list(tlist = tlist, wlist = wlist_orig, wlist_left = wlist_left_orig, results = results, ci = conf.int)
   }
 
 

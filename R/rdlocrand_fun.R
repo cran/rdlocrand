@@ -1,6 +1,6 @@
 #################################################################
 # Auxiliary functions for rdlocrand
-# !version 0.7.1 23-Aug-2020
+# !version 0.8 14-Jun-2021
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 #################################################################
 
@@ -186,12 +186,71 @@ hotelT2 <- function(X,D) {
   return(output)
 }
 
-
 #################################################################
 # Find window increments
 #################################################################
 
 findwobs <- function(wobs,nwin,posl,posr,R,dups){
+
+  N <- length(R)
+  Nc <- sum(R<0)
+  Nt <- sum(R>=0)
+  mpoints_l <- length(unique(R[1:Nc]))
+  mpoints_r <- length(unique(R[(Nc+1):N]))
+  mpoints_max <- max(mpoints_l,mpoints_r)
+  nwin_mp <- min(nwin,mpoints_max)
+  poslold <- posl
+  posrold <- posr
+
+  win <- 1
+  wlist_left <- NULL
+  poslist_left <- NULL
+  wlist_right <- NULL
+  poslist_right <- NULL
+
+  #while(win<=nwin & wobs<min(posl,Nt-(posr-Nc-1))){
+  while(win<=nwin_mp & wobs<max(posl,Nt-(posr-Nc-1))){
+
+    poslold <- posl
+    posrold <- posr
+
+    while(dups[posl]<wobs & sum(R[posl]<=R[posl:poslold])<wobs & posl>1){
+      posl <- max(posl - dups[posl],1)
+    }
+
+    while(dups[posr]<wobs & sum(R[posrold:posr]<=R[posr])<wobs & posr<N){
+      posr <- min(posr + dups[posr],N)
+    }
+
+    wlength_left <- R[posl]
+    wlength_right <- R[posr]
+
+    wlist_left <- c(wlist_left,wlength_left)
+    poslist_left <- c(poslist_left,posl)
+    wlist_right <- c(wlist_right,wlength_right)
+    poslist_right <- c(poslist_right,posr)
+
+    posl <- max(posl - dups[posl],1)
+    posr <- min(posr + dups[posr],N)
+
+    win <- win + 1
+
+  }
+
+  output <- list(posl = posl, posr = posr, wlength_left = wlength_left, wlength_right = wlength_right,
+                 wlist_left = wlist_left, wlist_right = wlist_right,
+                 poslist_left = poslist_left, poslist_right = poslist_right)
+
+  return(output)
+
+}
+
+
+#################################################################
+# Find symmetric window increments
+#################################################################
+
+findwobs_sym <- function(wobs,nwin,posl,posr,R,dups){
 
   N <- length(R)
   Nc <- sum(R<0)
@@ -235,6 +294,39 @@ findwobs <- function(wobs,nwin,posl,posr,R,dups){
 
 }
 
+#################################################################
+# Find CI
+#################################################################
+
+find_CI <- function(pvals,alpha,tlist){
+  if(all(pvals>=alpha)){
+    CI <- matrix(c(tlist[1],tlist[length(tlist)]),nrow=1,ncol=2)
+  } else if(all(pvals<alpha)){
+    CI <- matrix(NA,nrow=1,ncol=2)
+  } else{
+    whichvec <- which(pvals>=alpha)
+    index_l <- min(whichvec)
+    index_r <- max(whichvec)
+    indexmat <- matrix(c(index_l,index_r),nrow=1,ncol=2)
+
+    whichvec_cut <- whichvec
+    dif <- diff(whichvec_cut)
+    while(all(dif==1)==FALSE){
+      cut <- min(which(dif!=1))
+      auxvec <- whichvec_cut[1:cut]
+      indexmat <- rbind(indexmat,c(min(auxvec),max(auxvec)))
+      whichvec_cut <- whichvec_cut[(cut+1):length(whichvec_cut)]
+
+      dif <- diff(whichvec_cut)
+    }
+    if(nrow(indexmat)>1){
+      indexmat <- indexmat[2:nrow(indexmat),]
+      indexmat <- rbind(indexmat,c(min(whichvec_cut),max(whichvec_cut)))
+    }
+    CI <- t(apply(indexmat,1,function(x) tlist[x]))
+  }
+  return(CI)
+}
 
 #################################################################
 # Find window length - DEPRECATED: for backward compatibility
@@ -255,7 +347,6 @@ wlength <- function(R,D,num){
   minw <- max(xc,xt)
   return(minw)
 }
-
 
 #################################################################
 # Find default step - DEPRECATED: for backward compatibility

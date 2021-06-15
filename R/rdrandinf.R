@@ -1,6 +1,6 @@
 ###############################################################################
 # rdrandinf: randomization inference in RD window
-# !version 0.7.1 23-Aug-2020
+# !version 0.8 14-Jun-2021
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -49,8 +49,10 @@
 #' @param wmin the smallest window to be used (if \code{minobs} is not specified) by the companion command \code{rdwinselect}. Specifying both \code{wmin} and \code{obsmin} returns an error.
 #' @param wobs the number of observations to be added at each side of the cutoff at each step.
 #' @param wstep the increment in window length (if \code{obsstep} is not specified) by the companion command \code{rdwinselect}.  Specifying both \code{obsstep} and \code{wstep} returns an error.
+#' @param wsymmetric requires that windows be symmetrized around the cutoff when (\code{wobs} is specified).
 #' @param wmasspoints specifies that the running variable is discrete and each masspoint should be used as a window.
 #' @param nwindows the number of windows to be used by the companion command \code{rdwinselect}. Default is 10.
+#' @param dropmissing drop rows with missing values in covariates when calculating windows.
 #' @param rdwstat the statistic to be used by the companion command \code{rdwinselect} (see corresponding help for options). Default option is \code{ttest}.
 #' @param approx forces the companion command \code{rdwinselect} to conduct the covariate balance tests using a large-sample approximation instead of finite-sample exact randomization inference methods.
 #' @param rdwreps the number of replications to be used by the companion command \code{rdwinselect}. Default is 1000.
@@ -87,37 +89,39 @@
 
 
 rdrandinf <- function(Y,R,
-                     cutoff = 0,
-                     wl = NULL,
-                     wr = NULL,
-                     statistic = 'diffmeans',
-                     p = 0,
-                     evall = NULL,
-                     evalr = NULL,
-                     kernel = 'uniform',
-                     fuzzy = NULL,
-                     nulltau = 0,
-                     d = NULL,
-                     dscale = NULL,
-                     ci,
-                     interfci = NULL,
-                     bernoulli = NULL,
-                     reps = 1000,
-                     seed = 666,
-                     quietly = FALSE,
-                     covariates,
-                     obsmin = NULL,
-                     wmin = NULL,
-                     wobs = NULL,
-                     wstep = NULL,
-                     wmasspoints = FALSE,
-                     nwindows = 10,
-                     rdwstat = 'diffmeans',
-                     approx = FALSE,
-                     rdwreps = 1000,
-                     level = .15,
-                     plot = FALSE,
-                     obsstep = NULL){
+                      cutoff = 0,
+                      wl = NULL,
+                      wr = NULL,
+                      statistic = 'diffmeans',
+                      p = 0,
+                      evall = NULL,
+                      evalr = NULL,
+                      kernel = 'uniform',
+                      fuzzy = NULL,
+                      nulltau = 0,
+                      d = NULL,
+                      dscale = NULL,
+                      ci,
+                      interfci = NULL,
+                      bernoulli = NULL,
+                      reps = 1000,
+                      seed = 666,
+                      quietly = FALSE,
+                      covariates,
+                      obsmin = NULL,
+                      wmin = NULL,
+                      wobs = NULL,
+                      wstep = NULL,
+                      wsymmetric = FALSE,
+                      wmasspoints = FALSE,
+                      nwindows = 10,
+                      dropmissing = FALSE,
+                      rdwstat = 'diffmeans',
+                      approx = FALSE,
+                      rdwreps = 1000,
+                      level = .15,
+                      plot = FALSE,
+                      obsstep = NULL){
 
 
   ###############################################################################
@@ -129,6 +133,7 @@ rdrandinf <- function(Y,R,
   Rc.long <- R - cutoff
 
   if (!is.null(fuzzy)){
+    statistic <- ''
     if (is.numeric(fuzzy)==TRUE){
       fuzzy.stat <- 'ar'
       fuzzy.tr <- fuzzy
@@ -173,9 +178,13 @@ rdrandinf <- function(Y,R,
 
   }
 
-  if (cutoff<=min(R,na.rm=TRUE) | cutoff>=max(R,na.rm=TRUE)) stop('Cutoff must be within the range of the running variable')
+  if (cutoff<min(R,na.rm=TRUE) | cutoff>max(R,na.rm=TRUE)) stop('Cutoff must be within the range of the running variable')
   if (p<0) stop('p must be a positive integer')
-  if (statistic!='diffmeans' & statistic!='ttest' & statistic!='ksmirnov' & statistic!='ranksum' & statistic!='all') stop(paste(statistic,'not a valid statistic'))
+
+  if (is.null(fuzzy)){
+    if (statistic!='diffmeans' & statistic!='ttest' & statistic!='ksmirnov' & statistic!='ranksum' & statistic!='all') stop(paste(statistic,'not a valid statistic'))
+  }
+
   if (kernel!='uniform' & kernel!='triangular' & kernel!='epan') stop(paste(kernel,'not a valid kernel'))
   if (kernel!='uniform' & !is.null(evall) & !is.null(evalr)){
     if (evall!=cutoff | evalr!=cutoff) stop('kernel only allowed when evall=evalr=cutoff')
@@ -194,7 +203,7 @@ rdrandinf <- function(Y,R,
   if (!is.null(wl) & !is.null(wr)){
     wselect <- 'set by user'
     if (wl>=wr) stop('wl has to be smaller than wr')
-    if (wl>=cutoff | wr<=cutoff) stop('window does not include cutoff')
+    if (wl>cutoff | wr<cutoff) stop('window does not include cutoff')
   }
   if (is.null(wl) & !is.null(wr)) stop('wl not specified')
   if (!is.null(wl) & is.null(wr)) stop('wr not specified')
@@ -228,10 +237,10 @@ rdrandinf <- function(Y,R,
       wselect <- 'rdwinselect'
       if (quietly==FALSE) cat('\nRunning rdwinselect...\n')
       rdwlength <- rdwinselect(Rc.long,covariates,obsmin=obsmin,obsstep=obsstep,wmin=wmin,wstep=wstep,wobs=wobs,
-                  wmasspoints=wmasspoints,nwindows=nwindows,statistic=rdwstat,approx=approx,
-                  reps=rdwreps,plot=plot,level=level,seed=seed,quietly=TRUE)
-      wl <- cutoff + rdwlength$window[1]
-      wr <- cutoff + rdwlength$window[2]
+                               wsymmetric=wsymmetric,wmasspoints=wmasspoints,dropmissing=dropmissing,nwindows=nwindows,
+                               statistic=rdwstat,approx=approx,reps=rdwreps,plot=plot,level=level,seed=seed,quietly=TRUE)
+      wl <- cutoff + rdwlength$w_left
+      wr <- cutoff + rdwlength$w_right
       if (quietly==FALSE) cat('\nrdwinselect complete.\n')
     }
   }
@@ -247,7 +256,7 @@ rdrandinf <- function(Y,R,
   Dw <- D[ww]
 
   if (!is.null(fuzzy)){
-      Tw <- fuzzy.tr[ww]
+    Tw <- fuzzy.tr[ww]
   }
 
   if (is.null(bernoulli)){
@@ -469,14 +478,17 @@ rdrandinf <- function(Y,R,
   if (!missing(ci)){
     ci.level <- ci[1]
     if (fuzzy.stat!='wald'){
-      wlength <- wr - cutoff
+
+      wr_c <- wr - cutoff
+      wl_c <- wl - cutoff
+
       if (length(ci)>1){
         tlist <- ci[-1]
-        aux <- rdsensitivity(Y,Rc,p=p,wlist=wlength,tlist=tlist,fuzzy=fuzzy,ci=c(wlength,ci.level),
+        aux <- rdsensitivity(Y,Rc,p=p,wlist=wr_c,wlist_left=wl_c,tlist=tlist,fuzzy=fuzzy,ci=c(wl_c,wr_c),ci_alpha=ci.level,
                              reps=reps,quietly=quietly,seed=seed,nodraw=TRUE)
 
       } else {
-        aux <- rdsensitivity(Y,Rc,p=p,wlist=wlength,fuzzy=fuzzy,ci=c(wlength,ci.level),
+        aux <- rdsensitivity(Y,Rc,p=p,wlist=wr_c,wlist_left=wl_c,fuzzy=fuzzy,ci=c(wl_c,wr_c),ci_alpha=ci.level,
                              reps=reps,quietly=quietly,seed=seed,nodraw=TRUE)
 
       }
@@ -510,35 +522,35 @@ rdrandinf <- function(Y,R,
 
   if (missing(ci) & is.null(interfci)){
     output <- list(sumstats = sumstats,
-                  obs.stat = obs.stat,
-                  p.value = p.value,
-                  asy.pvalue = asy.pval,
-                  window = c(wl,wr))
+                   obs.stat = obs.stat,
+                   p.value = p.value,
+                   asy.pvalue = asy.pval,
+                   window = c(wl,wr))
   }
   if (!missing(ci) & is.null(interfci)){
     output <- list(sumstats = sumstats,
-                  obs.stat = obs.stat,
-                  p.value = p.value,
-                  asy.pvalue = asy.pval,
-                  window = c(wl,wr),
-                  ci = conf.int)
+                   obs.stat = obs.stat,
+                   p.value = p.value,
+                   asy.pvalue = asy.pval,
+                   window = c(wl,wr),
+                   ci = conf.int)
   }
   if (missing(ci) & !is.null(interfci)){
     output <- list(sumstats = sumstats,
-                  obs.stat = obs.stat,
-                  p.value = p.value,
-                  asy.pvalue = asy.pval,
-                  window = c(wl,wr),
-                  interf.ci = interf.ci)
+                   obs.stat = obs.stat,
+                   p.value = p.value,
+                   asy.pvalue = asy.pval,
+                   window = c(wl,wr),
+                   interf.ci = interf.ci)
   }
   if (!missing(ci) & !is.null(interfci)){
     output <- list(sumstats = sumstats,
-                  obs.stat = obs.stat,
-                  p.value = p.value,
-                  asy.pvalue = asy.pval,
-                  window = c(wl,wr),
-                  ci = conf.int,
-                  interf.ci = interf.ci)
+                   obs.stat = obs.stat,
+                   p.value = p.value,
+                   asy.pvalue = asy.pval,
+                   window = c(wl,wr),
+                   ci = conf.int,
+                   interf.ci = interf.ci)
   }
 
 
@@ -548,8 +560,6 @@ rdrandinf <- function(Y,R,
     if (statistic=='ranksum'){statdisp = 'Rank sum z-stat'}
     if (fuzzy.stat=='ar'){
       statdisp <- 'Anderson-Rubin'
-      #obs.stat <- NA
-      #output[[2]] <- NA
     }
     if (fuzzy.stat=='wald'){statdisp = 'TSLS'}
 
@@ -565,7 +575,7 @@ rdrandinf <- function(Y,R,
     cat(format('Window            =',    width = 18))
     cat(format(wselect,                  width = 14, justify='right')); cat("\n")
     cat(format('H0:          tau  =',    width = 18))
-    cat(format(sprintf('%4.0f',nulltau), width = 14, justify='right')); cat("\n")
+    cat(format(sprintf('%4.3f',nulltau), width = 14, justify='right')); cat("\n")
     cat(format('Randomization     =',    width = 18))
     cat(format(randmech,                 width = 14, justify='right'))
     cat('\n\n')
@@ -654,12 +664,22 @@ rdrandinf <- function(Y,R,
 
     if (!missing(ci)){
       cat('\n')
-
-      cat(paste0((1-ci.level)*100,'% confidence interval: [',round(conf.int[1],3),',',round(conf.int[2],3),']\n'))
-
-      if (fuzzy.stat=='wald'){
+      if (fuzzy.stat!='wald'){
+        if(nrow(conf.int)==1){
+          cat(paste0((1-ci.level)*100,'% confidence interval: [',round(conf.int[1],3),',',round(conf.int[2],3),']\n'))
+        } else{
+          cat(paste0((1-ci.level)*100,'% confidence interval:'))
+          cat('\n')
+          print(round(conf.int,3))
+          cat('\n')
+          cat('Note: CI is disconnected - each row is a subset of the CI')
+        }
+      } else {
+        cat(paste0((1-ci.level)*100,'% confidence interval: [',round(ci.lb,3),',',round(ci.ub,3),']\n'))
         cat('CI based on asymptotic approximation')
       }
+
+
     }
 
     if (!is.null(interfci)){
