@@ -1,6 +1,6 @@
 ###############################################################################
 # rdwinselect: window selection for randomization inference in RD
-# !version 0.8 14-Jun-2021
+# !version 0.9 07-Jul-2021
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -34,7 +34,7 @@
 #' @param obsmin the minimum number of observations above and below the cutoff in the smallest window. Default is 10.
 #' @param wmin the smallest window to be used.
 #' @param wobs the number of observations to be added at each side of the cutoff at each step. Default is 5.
-#' @param wsymmetric requires that windows be symmetrized around the cutoff when (\code{wobs} is specified).
+#' @param wasymmetric allows for asymmetric windows around the cutoff when (\code{wobs} is specified).
 #' @param wmasspoints specifies that the running variable is discrete and each masspoint should be used as a window.
 #' @param wstep the increment in window length.
 #' @param nwindows the number of windows to be used. Default is 10.
@@ -80,7 +80,7 @@ rdwinselect <- function(R, X,
                        wmin = NULL,
                        wobs = NULL,
                        wstep = NULL,
-                       wsymmetric = FALSE,
+                       wasymmetric = FALSE,
                        wmasspoints = FALSE,
                        dropmissing = FALSE,
                        nwindows = 10,
@@ -165,6 +165,8 @@ rdwinselect <- function(R, X,
   if (max(dups)>1){
     cat('Mass points detected in running variable')
     cat('\n')
+    cat('You may use wmasspoints option for constructing windows at each mass point')
+    cat('\n')
     mp_left <- unique(Rc[D==0])
     mp_right <- unique(Rc[D==1])
     if (wmasspoints==TRUE){
@@ -189,11 +191,12 @@ rdwinselect <- function(R, X,
     }
     if (wmasspoints==TRUE){
       obsmin <- 1
+      wasymmetric <- TRUE
     }
     if (!is.null(obsstep)){
       wmin <- findwobs_sym(obsmin,1,posl,posr,Rc,dups)
     }
-    if (missing(wsymmetric)){
+    if (wasymmetric==TRUE){
       tmp <- findwobs(obsmin,1,posl,posr,Rc,dups)
       wmin_left <- tmp$wlength_left
       posmin_left <- tmp$poslist_left
@@ -245,7 +248,7 @@ rdwinselect <- function(R, X,
     }
     posl <- max(n0 - sum(Rc<0 & Rc>=wmin_left),1)
     posr <- min(n0 + 1 + sum(Rc>=0 & Rc<=wmin_right),n)
-    if (wsymmetric==FALSE){
+    if (wasymmetric==TRUE){
       tmp <- findwobs(wobs,nwindows-1,posl,posr,Rc,dups)
       wlist_left <- c(wmin_left,tmp$wlist_left)
       poslist_left <- c(posmin_left,tmp$poslist_left)
@@ -367,7 +370,7 @@ rdwinselect <- function(R, X,
 
   for (j in 1:nmax){
 
-    if (wsymmetric==FALSE & is.null(wstep) & is.null(obsstep)){
+    if (wasymmetric==TRUE & is.null(wstep) & is.null(obsstep)){
       wlower <- wlist_left[j]
       wupper <- wlist_right[j]
 

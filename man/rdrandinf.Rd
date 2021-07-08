@@ -30,7 +30,7 @@ rdrandinf(
   wmin = NULL,
   wobs = NULL,
   wstep = NULL,
-  wsymmetric = FALSE,
+  wasymmetric = FALSE,
   wmasspoints = FALSE,
   nwindows = 10,
   dropmissing = FALSE,
@@ -63,7 +63,7 @@ rdrandinf(
 
 \item{kernel}{specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.}
 
-\item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
+\item{fuzzy}{indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{itt} (intention-to-treat statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.}
 
 \item{nulltau}{the value of the treatment effect under the null hypothesis (default is 0).}
 
@@ -93,7 +93,7 @@ rdrandinf(
 
 \item{wstep}{the increment in window length (if \code{obsstep} is not specified) by the companion command \code{rdwinselect}.  Specifying both \code{obsstep} and \code{wstep} returns an error.}
 
-\item{wsymmetric}{requires that windows be symmetrized around the cutoff when (\code{wobs} is specified).}
+\item{wasymmetric}{allows for asymmetric windows around the cutoff when (\code{wobs} is specified).}
 
 \item{wmasspoints}{specifies that the running variable is discrete and each masspoint should be used as a window.}
 

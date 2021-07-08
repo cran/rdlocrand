@@ -12,7 +12,7 @@ rdwinselect(
   wmin = NULL,
   wobs = NULL,
   wstep = NULL,
-  wsymmetric = FALSE,
+  wasymmetric = FALSE,
   wmasspoints = FALSE,
   dropmissing = FALSE,
   nwindows = 10,
@@ -44,7 +44,7 @@ rdwinselect(
 
 \item{wstep}{the increment in window length.}
 
-\item{wsymmetric}{requires that windows be symmetrized around the cutoff when (\code{wobs} is specified).}
+\item{wasymmetric}{allows for asymmetric windows around the cutoff when (\code{wobs} is specified).}
 
 \item{wmasspoints}{specifies that the running variable is discrete and each masspoint should be used as a window.}
 

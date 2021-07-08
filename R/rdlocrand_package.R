@@ -1,6 +1,6 @@
 ###################################################################
 # rdlocrand: Local Randomization Methods for RD Designs
-# !version 0.8 14-Jun-2021
+# !version 0.9 07-Jul-2021
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###################################################################
 

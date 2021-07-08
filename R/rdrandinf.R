@@ -1,6 +1,6 @@
 ###############################################################################
 # rdrandinf: randomization inference in RD window
-# !version 0.8 14-Jun-2021
+# !version 0.9 07-Jul-2021
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -34,7 +34,7 @@
 #' @param evall the point at the left of the cutoff at which to evaluate the transformed outcome is evaluated. Default is the cutoff value.
 #' @param evalr specifies the point at the right of the cutoff at which the transformed outcome is evaluated. Default is the cutoff value.
 #' @param kernel specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
-#' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{ar} (Anderson-Rubin statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
+#' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{itt} (intention-to-treat statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
 #' @param nulltau the value of the treatment effect under the null hypothesis (default is 0).
 #' @param d the effect size for asymptotic power calculation. Default is 0.5 * standard deviation of outcome variable for the control group.
 #' @param dscale the fraction of the standard deviation of the outcome variable for the control group used as alternative hypothesis for asymptotic power calculation. Default is 0.5.
@@ -49,7 +49,7 @@
 #' @param wmin the smallest window to be used (if \code{minobs} is not specified) by the companion command \code{rdwinselect}. Specifying both \code{wmin} and \code{obsmin} returns an error.
 #' @param wobs the number of observations to be added at each side of the cutoff at each step.
 #' @param wstep the increment in window length (if \code{obsstep} is not specified) by the companion command \code{rdwinselect}.  Specifying both \code{obsstep} and \code{wstep} returns an error.
-#' @param wsymmetric requires that windows be symmetrized around the cutoff when (\code{wobs} is specified).
+#' @param wasymmetric allows for asymmetric windows around the cutoff when (\code{wobs} is specified).
 #' @param wmasspoints specifies that the running variable is discrete and each masspoint should be used as a window.
 #' @param nwindows the number of windows to be used by the companion command \code{rdwinselect}. Default is 10.
 #' @param dropmissing drop rows with missing values in covariates when calculating windows.
@@ -112,7 +112,7 @@ rdrandinf <- function(Y,R,
                       wmin = NULL,
                       wobs = NULL,
                       wstep = NULL,
-                      wsymmetric = FALSE,
+                      wasymmetric = FALSE,
                       wmasspoints = FALSE,
                       nwindows = 10,
                       dropmissing = FALSE,
@@ -139,7 +139,7 @@ rdrandinf <- function(Y,R,
       fuzzy.tr <- fuzzy
     } else {
       fuzzy.tr <- as.numeric(fuzzy[-length(fuzzy)])
-      if (fuzzy[length(fuzzy)]=='ar') fuzzy.stat <- 'ar'
+      if (fuzzy[length(fuzzy)]=='ar' | fuzzy[length(fuzzy)]=='itt') fuzzy.stat <- 'ar'
       else if (fuzzy[length(fuzzy)]=='tsls') fuzzy.stat <- 'wald'
       else {stop('fuzzy statistic not valid')}
     }
@@ -237,7 +237,7 @@ rdrandinf <- function(Y,R,
       wselect <- 'rdwinselect'
       if (quietly==FALSE) cat('\nRunning rdwinselect...\n')
       rdwlength <- rdwinselect(Rc.long,covariates,obsmin=obsmin,obsstep=obsstep,wmin=wmin,wstep=wstep,wobs=wobs,
-                               wsymmetric=wsymmetric,wmasspoints=wmasspoints,dropmissing=dropmissing,nwindows=nwindows,
+                               wasymmetric=wasymmetric,wmasspoints=wmasspoints,dropmissing=dropmissing,nwindows=nwindows,
                                statistic=rdwstat,approx=approx,reps=rdwreps,plot=plot,level=level,seed=seed,quietly=TRUE)
       wl <- cutoff + rdwlength$w_left
       wr <- cutoff + rdwlength$w_right
@@ -476,7 +476,7 @@ rdrandinf <- function(Y,R,
   ###############################################################################
 
   if (!missing(ci)){
-    ci.level <- ci[1]
+    ci.alpha <- ci[1]
     if (fuzzy.stat!='wald'){
 
       wr_c <- wr - cutoff
@@ -484,11 +484,11 @@ rdrandinf <- function(Y,R,
 
       if (length(ci)>1){
         tlist <- ci[-1]
-        aux <- rdsensitivity(Y,Rc,p=p,wlist=wr_c,wlist_left=wl_c,tlist=tlist,fuzzy=fuzzy,ci=c(wl_c,wr_c),ci_alpha=ci.level,
+        aux <- rdsensitivity(Y,Rc,p=p,wlist=wr_c,wlist_left=wl_c,tlist=tlist,fuzzy=fuzzy,ci=c(wl_c,wr_c),ci_alpha=ci.alpha,
                              reps=reps,quietly=quietly,seed=seed,nodraw=TRUE)
 
       } else {
-        aux <- rdsensitivity(Y,Rc,p=p,wlist=wr_c,wlist_left=wl_c,fuzzy=fuzzy,ci=c(wl_c,wr_c),ci_alpha=ci.level,
+        aux <- rdsensitivity(Y,Rc,p=p,wlist=wr_c,wlist_left=wl_c,fuzzy=fuzzy,ci=c(wl_c,wr_c),ci_alpha=ci.alpha,
                              reps=reps,quietly=quietly,seed=seed,nodraw=TRUE)
 
       }
@@ -559,7 +559,7 @@ rdrandinf <- function(Y,R,
     if (statistic=='ksmirnov'){statdisp = 'Kolmogorov-Smirnov'}
     if (statistic=='ranksum'){statdisp = 'Rank sum z-stat'}
     if (fuzzy.stat=='ar'){
-      statdisp <- 'Anderson-Rubin'
+      statdisp <- 'ITT'
     }
     if (fuzzy.stat=='wald'){statdisp = 'TSLS'}
 
@@ -666,16 +666,16 @@ rdrandinf <- function(Y,R,
       cat('\n')
       if (fuzzy.stat!='wald'){
         if(nrow(conf.int)==1){
-          cat(paste0((1-ci.level)*100,'% confidence interval: [',round(conf.int[1],3),',',round(conf.int[2],3),']\n'))
+          cat(paste0((1-ci.alpha)*100,'% confidence interval: [',round(conf.int[1],3),',',round(conf.int[2],3),']\n'))
         } else{
-          cat(paste0((1-ci.level)*100,'% confidence interval:'))
+          cat(paste0((1-ci.alpha)*100,'% confidence interval:'))
           cat('\n')
           print(round(conf.int,3))
           cat('\n')
           cat('Note: CI is disconnected - each row is a subset of the CI')
         }
       } else {
-        cat(paste0((1-ci.level)*100,'% confidence interval: [',round(ci.lb,3),',',round(ci.ub,3),']\n'))
+        cat(paste0((1-ci.alpha)*100,'% confidence interval: [',round(ci.lb,3),',',round(ci.ub,3),']\n'))
         cat('CI based on asymptotic approximation')
       }
 
