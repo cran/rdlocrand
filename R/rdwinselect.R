@@ -1,6 +1,6 @@
 ###############################################################################
 # rdwinselect: window selection for randomization inference in RD
-# !version 0.9 07-Jul-2021
+# !version 1.0 21-Jun-2022
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -538,9 +538,9 @@ rdwinselect <- function(R, X,
     if (quietly==FALSE){
       cat(format(sprintf('%6.4f',wlower+cutoff),    width = 9,justify='right'))
       cat(format(sprintf('%6.4f',wupper+cutoff),    width = 9,justify='right'))
-      cat(format(sprintf('%1.3f',table_rdw[j,1],3), width = 11,justify='right'))
+      cat(format(sprintf('%1.3f',table_rdw[j,1]), width = 11,justify='right'))
       cat(format(varname,                           width = 16,justify='right'))
-      cat(format(sprintf('%1.3f',table_rdw[j,3],3), width = 12,justify='right'))
+      cat(format(sprintf('%1.3f',table_rdw[j,3]), width = 12,justify='right'))
       cat(format(sprintf('%6.0f',table_rdw[j,4]),   width = 11,justify='right'))
       cat(format(sprintf('%6.0f',table_rdw[j,5]),   width = 11,justify='right'))
       cat('\n')

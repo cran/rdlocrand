@@ -1,6 +1,6 @@
 ###############################################################################
 # rdrandinf: randomization inference in RD window
-# !version 0.9 07-Jul-2021
+# !version 1.0 21-Jun-2022
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -34,7 +34,7 @@
 #' @param evall the point at the left of the cutoff at which to evaluate the transformed outcome is evaluated. Default is the cutoff value.
 #' @param evalr specifies the point at the right of the cutoff at which the transformed outcome is evaluated. Default is the cutoff value.
 #' @param kernel specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
-#' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{itt} (intention-to-treat statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
+#' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as the variable containing the values of the endogenous treatment variable, or as a vector where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{itt} (intention-to-treat statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
 #' @param nulltau the value of the treatment effect under the null hypothesis (default is 0).
 #' @param d the effect size for asymptotic power calculation. Default is 0.5 * standard deviation of outcome variable for the control group.
 #' @param dscale the fraction of the standard deviation of the outcome variable for the control group used as alternative hypothesis for asymptotic power calculation. Default is 0.5.
@@ -58,6 +58,7 @@
 #' @param rdwreps the number of replications to be used by the companion command \code{rdwinselect}. Default is 1000.
 #' @param level the minimum accepted value of the p-value from the covariate balance tests to be used by the companion command \code{rdwinselect}. Default is .15.
 #' @param plot draws a scatter plot of the minimum p-value from the covariate balance test against window length implemented by the companion command \code{rdwinselect}.
+#' @param firststage reports the results from the first step when using tsls.
 #' @param obsstep the minimum number of observations to be added on each side of the cutoff for the sequence of fixed-increment nested windows. Default is 2. This option is deprecated and only included for backward compatibility.
 #'
 #' @return
@@ -121,6 +122,7 @@ rdrandinf <- function(Y,R,
                       rdwreps = 1000,
                       level = .15,
                       plot = FALSE,
+                      firststage = FALSE,
                       obsstep = NULL){
 
 
@@ -367,6 +369,7 @@ rdrandinf <- function(Y,R,
 
   if (p==0){
     if (fuzzy.stat=='wald'){
+      firststagereg <- lm(Tw ~ Dw)
       aux <- AER::ivreg(Yw ~ Tw | Dw,weights=kweights)
       obs.stat <- aux$coefficients["Tw"]
       se <- sqrt(diag(sandwich::vcovHC(aux,type='HC1'))['Tw'])
@@ -399,6 +402,7 @@ rdrandinf <- function(Y,R,
 
     if (fuzzy.stat=='wald'){
       inter <- Rpoly*Dw
+      firststagereg <- lm(Tw ~ Dw)
       aux <- AER::ivreg(Yw ~ Rpoly + inter + Tw | Rpoly + inter + Dw,weights=kweights)
       obs.stat <- aux$coefficients["Tw"]
       se <- sqrt(diag(sandwich::vcovHC(aux,type='HC1'))['Tw'])
@@ -607,6 +611,12 @@ rdrandinf <- function(Y,R,
     cat('\n')
 
     cat(paste0(rep('=',80),collapse='')); cat('\n')
+
+    if (firststage==TRUE & fuzzy.stat=='wald'){
+      cat("First stage regression"); cat('\n')
+      print(summary(firststagereg))
+      cat(paste0(rep('=',80),collapse='')); cat('\n')
+    }
 
     cat(format('',              width = 31))
     cat(format('Finite sample', width = 20,justify='centre'))
