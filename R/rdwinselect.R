@@ -1,74 +1,82 @@
 ###############################################################################
 # rdwinselect: window selection for randomization inference in RD
-# !version 1.1 22-May-2025
+# !version 2.0 14-May-2026
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
 #' Window selection for RD designs under local randomization
 #'
-#' \code{rdwinselect} implements the window-selection procedure
-#'  based on balance tests for RD designs under local randomization.
-#'  Specifically, it constructs a sequence of nested windows around the RD cutoff
-#'  and reports binomial tests for the running variable runvar and covariate balance
-#'  tests for covariates covariates (if specified). The recommended window is the
-#'  largest window around the cutoff such that the minimum p-value of the balance test
-#'  is larger than a prespecified level for all nested (smaller) windows. By default,
-#'  the p-values are calculated using randomization inference methods.
+#' \code{rdwinselect} implements a window-selection procedure based on balance
+#'  tests for RD designs under local randomization. Specifically, it constructs a
+#'  sequence of nested windows around the RD cutoff and reports binomial tests for
+#'  the running variable and covariate balance tests for the covariates (if
+#'  specified). The recommended window is the largest window around the cutoff
+#'  such that the minimum p-value from the balance tests is larger than a
+#'  prespecified level for all nested (smaller) windows. By default, the p-values
+#'  are calculated using randomization inference methods.
 #'
 #' @author
-#' Matias Cattaneo, Princeton University. \email{cattaneo@princeton.edu}
+#' Matias D. Cattaneo, Princeton University. \email{matias.d.cattaneo@gmail.com}
 #'
-#' Rocio Titiunik, Princeton University. \email{titiunik@princeton.edu}
+#' Rocio Titiunik, Princeton University. \email{rocio.titiunik@gmail.com}
 #'
-#' Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquez@econ.ucsb.edu}
+#' Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquezbare@gmail.com}
 #'
 #' @references
 #'
+#' Cattaneo, M.D., B. Frandsen and R. Titiunik. (2015). \href{https://rdpackages.github.io/references/Cattaneo-Frandsen-Titiunik_2015_JCI.pdf}{Randomization Inference in the Regression Discontinuity Design: An Application to Party Advantages in the U.S. Senate}. \emph{Journal of Causal Inference} 3(1): 1-24.
+#'
 #' Cattaneo, M.D., R. Titiunik and G. Vazquez-Bare. (2016). \href{https://rdpackages.github.io/references/Cattaneo-Titiunik-VazquezBare_2016_Stata.pdf}{Inference in Regression Discontinuity Designs under Local Randomization}. \emph{Stata Journal} 16(2): 331-367.
 #'
-#'
+#' Cattaneo, M.D., R. Titiunik and G. Vazquez-Bare. (2017). \href{https://rdpackages.github.io/references/Cattaneo-Titiunik-VazquezBare_2017_JPAM.pdf}{Comparing Inference Approaches for RD Designs: A Reexamination of the Effect of Head Start on Child Mortality}. \emph{Journal of Policy Analysis and Management} 36(3): 643-681.
 #'
 #' @param R a vector containing the values of the running variable.
-#' @param X the matrix of covariates to be used in the balancing tests. The matrix is optional but the recommended window is only provided when at least one covariate is specified. This should be a matrix of size n x k where n is the total sample size and $k$ is the number of covariates.
+#' @param X the matrix of covariates to be used in the balance tests. The matrix is optional, but the recommended window is only provided when at least one covariate is specified. This should be a matrix of size n x k where n is the total sample size and k is the number of covariates.
 #' @param cutoff the RD cutoff (default is 0).
 #' @param obsmin the minimum number of observations above and below the cutoff in the smallest window. Default is 10.
 #' @param wmin the smallest window to be used.
-#' @param wobs the number of observations to be added at each side of the cutoff at each step. Default is 5.
-#' @param wasymmetric allows for asymmetric windows around the cutoff when (\code{wobs} is specified).
+#' @param wobs the number of observations to be added on each side of the cutoff at each step. Default is 5.
+#' @param wasymmetric allows for asymmetric windows around the cutoff when \code{wobs} is specified.
 #' @param wmasspoints specifies that the running variable is discrete and each masspoint should be used as a window.
 #' @param wstep the increment in window length.
 #' @param nwindows the number of windows to be used. Default is 10.
 #' @param dropmissing drop rows with missing values in covariates when calculating windows.
 #' @param statistic the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic), \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic) and \code{hotelling} (Hotelling's T-squared statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.
-#' @param p the order of the polynomial for outcome adjustment model (for covariates). Default is 0.
+#' @param p the order of the polynomial for the outcome adjustment model (for covariates). Default is 0.
 #' @param evalat specifies the point at which the adjusted variable is evaluated. Allowed options are \code{cutoff} and \code{means}. Default is \code{cutoff}.
-#' @param kernel specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
+#' @param kernel specifies the type of kernel to use as a weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel), and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
 #' @param approx forces the command to conduct the covariate balance tests using a large-sample approximation instead of finite-sample exact randomization inference methods.
 #' @param level the minimum accepted value of the p-value from the covariate balance tests. Default is .15.
-#' @param reps number of replications. Default is 1000.
+#' @param reps the number of replications. Default is 1000.
 #' @param seed the seed to be used for the randomization tests.
 #' @param plot draws a scatter plot of the minimum p-value from the covariate balance test against window length.
-#' @param quietly suppress output
+#' @param quietly suppresses output.
 #' @param obsstep the minimum number of observations to be added on each side of the cutoff for the sequence of fixed-increment nested windows. This option is deprecated and only included for backward compatibility.
 #'
 #' @return
-#' \item{window}{recommended window (NA is covariates are not specified)}
-#' \item{wlist}{list of window lengths}
-#' \item{results}{table including window lengths, minimum p-value in each window, corresponding number of the variable with minimum p-value (i.e. column of covariate matrix), Binomial test p-value and sample sizes to the left and right of the cutoff in each window.}
-#' \item{summary}{summary statistics.}
+#' A list containing:
+#' \item{w_left}{left endpoint of the recommended window.}
+#' \item{w_right}{right endpoint of the recommended window.}
+#' \item{wlist_left}{left endpoints of the candidate windows.}
+#' \item{wlist_right}{right endpoints of the candidate windows.}
+#' \item{results}{matrix containing the minimum covariate-balance p-value,
+#' selected covariate index, binomial-test p-value, sample sizes below and
+#' above the cutoff, and window endpoints for each candidate window.}
+#' \item{summary}{matrix of sample-size summaries by side of the cutoff.}
 #'
 #' @examples
 #' # Toy dataset
+#' set.seed(123)
 #' X <- array(rnorm(200),dim=c(100,2))
-#' R <- X[1,] + X[2,] + rnorm(100)
+#' R <- X[,1] + X[,2] + rnorm(100)
 #' # Window selection adding 5 observations at each step
 #' # Note: low number of replications to speed up process.
-#' tmp <- rdwinselect(R,X,obsmin=10,wobs=5,reps=500)
+#' tmp <- rdwinselect(R,X,obsmin=10,wobs=5,nwindows=5,reps=500,quietly=TRUE)
 #' # Window selection setting initial window and step
 #' # The user should increase the number of replications.
-#' tmp <- rdwinselect(R,X,wmin=.5,wstep=.125,reps=500)
+#' tmp <- rdwinselect(R,X,wmin=.5,wstep=.125,reps=500,quietly=TRUE)
 #' # Window selection with approximate (large sample) inference and p-value plot
-#' tmp <- rdwinselect(R,X,wmin=.5,wstep=.125,approx=TRUE,nwin=80,quietly=TRUE,plot=TRUE)
+#' tmp <- rdwinselect(R,X,wmin=.5,wstep=.125,approx=TRUE,nwindows=20,quietly=TRUE,plot=TRUE)
 #'
 #'
 #' @export
@@ -104,9 +112,17 @@ rdwinselect <- function(R, X,
   if (cutoff<=min(R,na.rm=TRUE) | cutoff>=max(R,na.rm=TRUE)) stop('Cutoff must be within the range of the running variable')
   if (p<0) stop('p must be a positive integer')
   if (p>0 & approx==TRUE & statistic!='ttest' & statistic!='diffmeans') stop('approximate and p>1 can only be combined with diffmeans')
-  if (statistic!='diffmeans' & statistic!='ttest' & statistic!='ksmirnov' & statistic!='ranksum' & statistic!='hotelling') stop(paste(statistic,'not a valid statistic'))
-  if (evalat!='cutoff' & evalat!='means') stop('evalat only admits means or cutoff')
-  if (kernel!='uniform' & kernel!='triangular' & kernel!='epan') stop(paste(kernel,'not a valid kernel'))
+  rdlocrand_validate_choice(
+    statistic,
+    c('diffmeans','ttest','ksmirnov','ranksum','hotelling'),
+    paste(paste(statistic, collapse = ', '),'not a valid statistic')
+  )
+  rdlocrand_validate_choice(evalat, c('cutoff','means'), 'evalat only admits means or cutoff')
+  rdlocrand_validate_choice(
+    kernel,
+    c('uniform','triangular','epan'),
+    paste(paste(kernel, collapse = ', '),'not a valid kernel')
+  )
   if (kernel!='uniform' & evalat!='cutoff') stop('kernel can only be combined with evalat(cutoff)')
   if (kernel!='uniform' & statistic!='ttest' & statistic!='diffmeans') stop('kernel only allowed for diffmeans')
   if (!is.null(obsmin) & !is.null(wmin)) stop('cannot set both obsmin and wmin')
@@ -147,12 +163,12 @@ rdwinselect <- function(R, X,
     D <- data[,2]
   }
 
-  if (!missing(X)){X <- as.matrix(X)}
-  if (seed>0){
-    set.seed(seed)
-  } else if (seed!=-1){
-    stop('Seed has to be a positive integer or -1 for system seed')
+  if (!missing(X)){
+    X <- as.matrix(X)
+    covariate_complete <- complete.cases(X)
   }
+  restore_rng <- rdlocrand_seed_scope(seed)
+  on.exit(restore_rng(), add = TRUE)
 
   if (approx==FALSE){testing_method='rdrandinf'}else{testing_method='approximate'}
 
@@ -388,23 +404,14 @@ rdwinselect <- function(R, X,
 
     }
 
-    Dw <- D[ww]
-    Rw <- Rc[ww]
-
-    ## Drop NA values
-
     if (!missing(X)){
-      Xw <- X[ww,]
-      data <- data.frame(Rw,Dw,Xw)
-      data <- data[complete.cases(data),]
-      Rw <- data[,1]
-      Dw <- data[,2]
-      Xw <- data[,c(-1,-2)]
+      ww <- ww & covariate_complete
+      Dw <- D[ww]
+      Rw <- Rc[ww]
+      Xw <- X[ww,,drop=FALSE]
     } else {
-      data <- cbind(Rw,Dw)
-      data <- data[complete.cases(data),]
-      Rw <- data[,1]
-      Dw <- data[,2]
+      Dw <- D[ww]
+      Rw <- Rc[ww]
     }
 
     ## Sample sizes

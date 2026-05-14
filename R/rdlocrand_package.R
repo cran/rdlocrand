@@ -1,6 +1,6 @@
 ###################################################################
 # rdlocrand: Local Randomization Methods for RD Designs
-# !version 1.1 22-May-2025
+# !version 2.0 14-May-2026
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###################################################################
 
@@ -10,21 +10,22 @@
 #' The regression discontinuity (RD) design is a popular quasi-experimental design
 #' for causal inference and policy evaluation. Under the local randomization approach,
 #' RD designs can be interpreted as randomized experiments inside a window around the
-#' cutoff. The \code{rdlocrand} package provides tools to analyze RD designs under local
-#' randomization: \code{\link{rdrandinf}} to perform hypothesis
-#' testing using randomization inference, \code{\link{rdwinselect}} to select a window
-#' around the cutoff in which randomization is likely to hold, \code{\link{rdsensitivity}}
-#' to assess the sensitivity of the results to different window lengths and null hypotheses
-#' and \code{\link{rdrbounds}} to construct Rosenbaum bounds for sensitivity to
-#' unobserved confounders. For more details, and related \code{Stata} and \code{R} packages
-#'  useful for analysis of RD designs, visit \url{https://rdpackages.github.io/}.
+#' cutoff. The \code{rdlocrand} package provides tools to analyze RD designs under
+#' local randomization: \code{\link{rdrandinf}} to perform hypothesis testing
+#' using randomization inference, \code{\link{rdwinselect}} to select a window
+#' around the cutoff in which randomization is likely to hold,
+#' \code{\link{rdsensitivity}} to assess sensitivity to different window lengths
+#' and null hypotheses, and \code{\link{rdrbounds}} to construct Rosenbaum bounds
+#' for sensitivity to unobserved confounders. For more details, and related
+#' \code{R}, \code{Python}, and \code{Stata} packages useful for analysis of RD
+#' designs, visit \url{https://rdpackages.github.io/}.
 #'
 #' @author
-#' Matias Cattaneo, Princeton University. \email{cattaneo@princeton.edu}
+#' Matias D. Cattaneo, Princeton University. \email{matias.d.cattaneo@gmail.com}
 #'
-#' Rocio Titiunik, Princeton University. \email{titiunik@princeton.edu}
+#' Rocio Titiunik, Princeton University. \email{rocio.titiunik@gmail.com}
 #'
-#' Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquez@econ.ucsb.edu}
+#' Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquezbare@gmail.com}
 #'
 #' @references
 #' Cattaneo, M.D., B. Frandsen and R. Titiunik. (2015).  \href{https://rdpackages.github.io/references/Cattaneo-Frandsen-Titiunik_2015_JCI.pdf}{Randomization Inference in the Regression Discontinuity Design: An Application to Party Advantages in the U.S. Senate}. \emph{Journal of Causal Inference} 3(1): 1-24.
@@ -51,7 +52,6 @@
 #' @importFrom stats sd
 #' @importFrom stats var
 #' @importFrom stats vcov
-#' @importFrom stats wilcox.test
 #'
 #' @aliases rdlocrand_package
 "_PACKAGE"

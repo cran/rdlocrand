@@ -1,6 +1,6 @@
 ###############################################################################
 # rdrandinf: randomization inference in RD window
-# !version 1.1 22-May-2025
+# !version 2.0 14-May-2026
 # Authors: Matias Cattaneo, Rocio Titiunik, Gonzalo Vazquez-Bare
 ###############################################################################
 
@@ -12,48 +12,50 @@
 #'
 #'
 #' @author
-#' Matias Cattaneo, Princeton University. \email{cattaneo@princeton.edu}
+#' Matias D. Cattaneo, Princeton University. \email{matias.d.cattaneo@gmail.com}
 #'
-#' Rocio Titiunik, Princeton University. \email{titiunik@princeton.edu}
+#' Rocio Titiunik, Princeton University. \email{rocio.titiunik@gmail.com}
 #'
-#' Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquez@econ.ucsb.edu}
+#' Gonzalo Vazquez-Bare, UC Santa Barbara. \email{gvazquezbare@gmail.com}
 #'
 #' @references
 #'
+#' Cattaneo, M.D., B. Frandsen and R. Titiunik. (2015). \href{https://rdpackages.github.io/references/Cattaneo-Frandsen-Titiunik_2015_JCI.pdf}{Randomization Inference in the Regression Discontinuity Design: An Application to Party Advantages in the U.S. Senate}. \emph{Journal of Causal Inference} 3(1): 1-24.
+#'
 #' Cattaneo, M.D., R. Titiunik and G. Vazquez-Bare. (2016). \href{https://rdpackages.github.io/references/Cattaneo-Titiunik-VazquezBare_2016_Stata.pdf}{Inference in Regression Discontinuity Designs under Local Randomization}. \emph{Stata Journal} 16(2): 331-367.
 #'
-#'
+#' Cattaneo, M.D., R. Titiunik and G. Vazquez-Bare. (2017). \href{https://rdpackages.github.io/references/Cattaneo-Titiunik-VazquezBare_2017_JPAM.pdf}{Comparing Inference Approaches for RD Designs: A Reexamination of the Effect of Head Start on Child Mortality}. \emph{Journal of Policy Analysis and Management} 36(3): 643-681.
 #'
 #' @param Y a vector containing the values of the outcome variable.
 #' @param R a vector containing the values of the running variable.
 #' @param cutoff the RD cutoff (default is 0).
 #' @param wl the left limit of the window. The default takes the minimum of the running variable.
 #' @param wr the right limit of the window. The default takes the maximum of the running variable.
-#' @param statistic the statistic to be used in the balance tests. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic) and \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic). Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.
-#' @param p the order of the polynomial for outcome transformation model (default is 0).
-#' @param evall the point at the left of the cutoff at which to evaluate the transformed outcome is evaluated. Default is the cutoff value.
-#' @param evalr specifies the point at the right of the cutoff at which the transformed outcome is evaluated. Default is the cutoff value.
-#' @param kernel specifies the type of kernel to use as weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel) and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
-#' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the name of the statistic to be used. Allowed statistics are \code{itt} (intention-to-treat statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on large-sample approximation.
+#' @param statistic the randomization test statistic to be used. Allowed options are \code{diffmeans} (difference in means statistic), \code{ksmirnov} (Kolmogorov-Smirnov statistic), \code{ranksum} (Wilcoxon-Mann-Whitney standardized statistic), and \code{all}. Default option is \code{diffmeans}. The statistic \code{ttest} is equivalent to \code{diffmeans} and included for backward compatibility.
+#' @param p the order of the polynomial for the outcome adjustment model (default is 0).
+#' @param evall the point to the left of the cutoff at which the adjusted outcome is evaluated. Default is the cutoff value.
+#' @param evalr the point to the right of the cutoff at which the adjusted outcome is evaluated. Default is the cutoff value.
+#' @param kernel specifies the type of kernel to use as a weighting scheme. Allowed kernel types are \code{uniform} (uniform kernel), \code{triangular} (triangular kernel), and \code{epan} (Epanechnikov kernel). Default is \code{uniform}.
+#' @param fuzzy indicates that the RD design is fuzzy. \code{fuzzy} can be specified as a vector containing the values of the endogenous treatment variable, or as a list where the first element is the vector of endogenous treatment values and the second element is a string containing the statistic to be used. Allowed statistics are \code{ar} or \code{itt} (Anderson-Rubin/intention-to-treat statistic) and \code{tsls} (2SLS statistic). Default statistic is \code{ar}. The \code{tsls} statistic relies on a large-sample approximation.
 #' @param nulltau the value of the treatment effect under the null hypothesis (default is 0).
-#' @param d the effect size for asymptotic power calculation. Default is 0.5 * standard deviation of outcome variable for the control group.
-#' @param dscale the fraction of the standard deviation of the outcome variable for the control group used as alternative hypothesis for asymptotic power calculation. Default is 0.5.
-#' @param ci calculates a confidence interval for the treatment effect by test inversion. \code{ci} can be specified as a scalar or a vector, where the first element indicates the value of alpha for the confidence interval (typically 0.05 or 0.01) and the remaining elements, if specified, indicate the grid of treatment effects to be evaluated. This option uses \code{rdsensitivity} to calculate the confidence interval. See corresponding help for details. Note: the default tlist can be narrow in some cases, which may truncate the confidence interval. We recommend the user to manually set a large enough tlist.
+#' @param d the effect size for asymptotic power calculation. Default is 0.5 times the standard deviation of the outcome variable for the control group.
+#' @param dscale the fraction of the standard deviation of the outcome variable for the control group used as the alternative hypothesis for asymptotic power calculation. Default is 0.5.
+#' @param ci calculates a confidence interval for the treatment effect by test inversion. \code{ci} can be specified as a scalar or a vector, where the first element indicates the value of alpha for the confidence interval (typically 0.05 or 0.01) and the remaining elements, if specified, indicate the grid of treatment effects to be evaluated. This option uses \code{rdsensitivity} to calculate the confidence interval. See the corresponding help file for details. Note: the default tlist can be narrow in some cases, which may truncate the confidence interval. We recommend manually setting a large enough tlist.
 #' @param interfci the level for Rosenbaum's confidence interval under arbitrary interference between units.
 #' @param bernoulli the probabilities of treatment for each unit when assignment mechanism is a Bernoulli trial. This option should be specified as a vector of length equal to the length of the outcome and running variables.
 #' @param reps the number of replications (default is 1000).
 #' @param seed the seed to be used for the randomization test.
 #' @param quietly suppresses the output table.
 #' @param covariates the covariates used by \code{rdwinselect} to choose the window when \code{wl} and \code{wr} are not specified. This should be a matrix of size n x k where n is the total sample size and k is the number of covariates.
-#' @param obsmin the minimum number of observations above and below the cutoff in the smallest window employed by the companion command \code{rdwinselect}. Default is 10.
-#' @param wmin the smallest window to be used (if \code{minobs} is not specified) by the companion command \code{rdwinselect}. Specifying both \code{wmin} and \code{obsmin} returns an error.
-#' @param wobs the number of observations to be added at each side of the cutoff at each step.
-#' @param wstep the increment in window length (if \code{obsstep} is not specified) by the companion command \code{rdwinselect}.  Specifying both \code{obsstep} and \code{wstep} returns an error.
-#' @param wasymmetric allows for asymmetric windows around the cutoff when (\code{wobs} is specified).
+#' @param obsmin the minimum number of observations above and below the cutoff in the smallest window used by the companion command \code{rdwinselect}. Default is 10.
+#' @param wmin the smallest window to be used (if \code{obsmin} is not specified) by the companion command \code{rdwinselect}. Specifying both \code{wmin} and \code{obsmin} returns an error.
+#' @param wobs the number of observations to be added on each side of the cutoff at each step.
+#' @param wstep the increment in window length (if \code{obsstep} is not specified) by the companion command \code{rdwinselect}. Specifying both \code{obsstep} and \code{wstep} returns an error.
+#' @param wasymmetric allows for asymmetric windows around the cutoff when \code{wobs} is specified.
 #' @param wmasspoints specifies that the running variable is discrete and each masspoint should be used as a window.
 #' @param nwindows the number of windows to be used by the companion command \code{rdwinselect}. Default is 10.
 #' @param dropmissing drop rows with missing values in covariates when calculating windows.
-#' @param rdwstat the statistic to be used by the companion command \code{rdwinselect} (see corresponding help for options). Default option is \code{ttest}.
+#' @param rdwstat the statistic to be used by the companion command \code{rdwinselect} (see the corresponding help file for options). Default option is \code{diffmeans}.
 #' @param approx forces the companion command \code{rdwinselect} to conduct the covariate balance tests using a large-sample approximation instead of finite-sample exact randomization inference methods.
 #' @param rdwreps the number of replications to be used by the companion command \code{rdwinselect}. Default is 1000.
 #' @param level the minimum accepted value of the p-value from the covariate balance tests to be used by the companion command \code{rdwinselect}. Default is .15.
@@ -62,27 +64,31 @@
 #' @param obsstep the minimum number of observations to be added on each side of the cutoff for the sequence of fixed-increment nested windows. Default is 2. This option is deprecated and only included for backward compatibility.
 #'
 #' @return
-#' \item{sumstats}{summary statistics}
-#' \item{obs.stat}{observed statistic(s)}
-#' \item{p.value}{randomization p-value(s)}
-#' \item{asy.pvalue}{asymptotic p-value(s)}
-#' \item{window}{chosen window}
-#' \item{ci}{confidence interval (only if \code{ci} option is specified)}
-#' \item{interf.ci}{confidence interval under interferecen (only if \code{interfci} is specified)}
+#' A list containing:
+#' \item{sumstats}{matrix of full-sample and window-specific summary statistics.}
+#' \item{obs.stat}{observed statistic or statistics.}
+#' \item{p.value}{randomization p-value or p-values.}
+#' \item{asy.pvalue}{asymptotic p-value or p-values.}
+#' \item{window}{chosen window endpoints.}
+#' \item{ci}{confidence interval; included only when \code{ci} is specified.}
+#' \item{interf.ci}{confidence interval under interference; included only when
+#' \code{interfci} is specified.}
 #'
 #' @examples
 #' # Toy dataset
+#' set.seed(123)
 #' X <- array(rnorm(200),dim=c(100,2))
-#' R <- X[1,] + X[2,] + rnorm(100)
+#' R <- X[,1] + X[,2] + rnorm(100)
 #' Y <- 1 + R -.5*R^2 + .3*R^3 + (R>=0) + rnorm(100)
 #' # Randomization inference in window (-.75,.75)
-#' tmp <- rdrandinf(Y,R,wl=-.75,wr=.75)
+#' tmp <- rdrandinf(Y,R,wl=-.75,wr=.75,quietly=TRUE)
 #' # Randomization inference in window (-.75,.75), all statistics
-#' tmp <- rdrandinf(Y,R,wl=-.75,wr=.75,statistic='all')
+#' tmp <- rdrandinf(Y,R,wl=-.75,wr=.75,statistic='all',quietly=TRUE)
 #' # Randomization inference with window selection
 #' # Note: low number of replications to speed up process.
 #' # The user should increase the number of replications.
-#' tmp <- rdrandinf(Y,R,statistic='all',covariates=X,wmin=.5,wstep=.125,rdwreps=500)
+#' tmp <- rdrandinf(Y,R,statistic='all',covariates=X,wmin=.5,wstep=.125,
+#'                  rdwreps=500,level=0,quietly=TRUE)
 #'
 #'
 #'
@@ -184,10 +190,18 @@ rdrandinf <- function(Y,R,
   if (p<0) stop('p must be a positive integer')
 
   if (is.null(fuzzy)){
-    if (statistic!='diffmeans' & statistic!='ttest' & statistic!='ksmirnov' & statistic!='ranksum' & statistic!='all') stop(paste(statistic,'not a valid statistic'))
+    rdlocrand_validate_choice(
+      statistic,
+      c('diffmeans','ttest','ksmirnov','ranksum','all'),
+      paste(paste(statistic, collapse = ', '),'not a valid statistic')
+    )
   }
 
-  if (kernel!='uniform' & kernel!='triangular' & kernel!='epan') stop(paste(kernel,'not a valid kernel'))
+  rdlocrand_validate_choice(
+    kernel,
+    c('uniform','triangular','epan'),
+    paste(paste(kernel, collapse = ', '),'not a valid kernel')
+  )
   if (kernel!='uniform' & !is.null(evall) & !is.null(evalr)){
     if (evall!=cutoff | evalr!=cutoff) stop('kernel only allowed when evall=evalr=cutoff')
   }
@@ -220,11 +234,8 @@ rdrandinf <- function(Y,R,
   n1 <- sum(D)
   n0 <- n - n1
 
-  if (seed>0){
-    set.seed(seed)
-  } else if (seed!=-1){
-    stop('Seed has to be a positive integer or -1 for system seed')
-  }
+  restore_rng <- rdlocrand_seed_scope(seed)
+  on.exit(restore_rng(), add = TRUE)
 
   ###############################################################################
   # Window selection
